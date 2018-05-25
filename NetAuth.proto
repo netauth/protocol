@@ -220,6 +220,11 @@ message Group {
   // entity is removed from the group they lose the capabilities that
   // were granted from it.
   repeated Capability Capabilities = 4;
+
+  // Groups can be managed by other groups.  For a group to be self
+  // managed, one would set the managed by group to be the group
+  // itself.
+  optional string ManagedBy = 5;
 }
 
 message ModGroupRequest {
