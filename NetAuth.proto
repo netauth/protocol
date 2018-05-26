@@ -21,6 +21,14 @@ enum Capability {
   MODIFY_GROUP_MEMBERS = 8;
 }
 
+// Group expansions can either be to include children of the named
+// group, or to exclude them.
+enum ExpansionMode {
+  INCLUDE = 1;
+  EXCLUDE = 2;
+  DROP = 99;
+}
+
 service NetAuth {
   // It is desireable to ping the server for status and health
   rpc Ping(PingRequest) returns (PingResponse) {}
@@ -65,13 +73,16 @@ service NetAuth {
   rpc DeleteGroup(ModGroupRequest) returns (SimpleResult) {}
   rpc ModifyGroupMeta(ModGroupRequest) returns (SimpleResult) {}
 
-  // List groups
+  // List groups and members
   rpc ListGroups(GroupListRequest) returns (GroupList) {}
+  rpc ListGroupMembers(GroupMemberRequest) returns (EntityList) {}
 
   // Modify direct group membership
   rpc AddEntityToGroup(ModEntityMembershipRequest) returns (SimpleResult) {}
   rpc RemoveEntityFromGroup(ModEntityMembershipRequest) returns (SimpleResult) {}
-  rpc ListGroupMembers(GroupMemberRequest) returns (EntityList) {}
+
+  // Modify nested group membership
+  rpc ModifyGroupNesting(ModGroupNestingRequest) returns (SimpleResult) {}
 }
 
 // The ClientInfo message contains information about the client
@@ -225,6 +236,14 @@ message Group {
   // managed, one would set the managed by group to be the group
   // itself.
   optional string ManagedBy = 5;
+
+  // Groups can also be members of other groups.  This allows a group
+  // to appear to contain a larger membership and build this
+  // membership based on potentially very intricate include/exclude
+  // rules.  The format of this field is "<mode>:<group>" so if you
+  // were including the membership of 'foo', then it would have the
+  // value of "INCLUDE:foo".
+  repeated string Children = 6;
 }
 
 message ModGroupRequest {
@@ -318,6 +337,24 @@ message EntityMeta {
 // entities.
 message EntityList {
   repeated Entity Members = 1;
+}
+
+// ModGroupNestingRequest handles the addition or removal of group
+// nesting operations.
+message ModGroupNestingRequest {
+  // This action must be authorized
+  required string AuthToken = 1;
+
+  // There must be a parent and child group for each request.
+  required Group ParentGroup = 2;
+  required Group ChildGroup = 3;
+
+  // Expansions can either include children or exclude them.  The
+  // default is to include.
+  optional ExpansionMode Mode = 4;
+
+  // Like other requests this contains info about the  caller
+  optional ClientInfo Info = 5;
 }
 
 // The PingRequest is used to ask the server to return its health
