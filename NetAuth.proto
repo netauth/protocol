@@ -72,6 +72,7 @@ service NetAuth {
   rpc NewGroup(ModGroupRequest) returns (SimpleResult) {}
   rpc DeleteGroup(ModGroupRequest) returns (SimpleResult) {}
   rpc ModifyGroupMeta(ModGroupRequest) returns (SimpleResult) {}
+  rpc GroupInfo(ModGroupRequest) returns (GroupInfoResult) {}
 
   // List groups and members
   rpc ListGroups(GroupListRequest) returns (GroupList) {}
@@ -271,6 +272,11 @@ message GroupListRequest{
 
 message GroupList {
   repeated Group Groups = 1;
+}
+
+message GroupInfoResult {
+  required Group Group = 1;
+  repeated string Managed = 2;
 }
 
 message EntityMeta {
