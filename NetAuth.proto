@@ -244,7 +244,7 @@ message Group {
   // rules.  The format of this field is "<mode>:<group>" so if you
   // were including the membership of 'foo', then it would have the
   // value of "INCLUDE:foo".
-  repeated string Children = 6;
+  repeated string Expansions = 6;
 }
 
 message ModGroupRequest {
