@@ -46,9 +46,13 @@ service NetAuth {
   rpc ValidateToken(NetAuthRequest) returns (SimpleResult) {}
 
   // ChangeSecret is unusual in that it uses the token if vouching for
-  // *another* entitie's secret being changed, but if the change is
-  // for the requesting entity, the original secret must be provided.
+  // *another* entity's secret being changed, but if the change is for
+  // the requesting entity, the original secret must be provided.
   rpc ChangeSecret(ModEntityRequest) returns (SimpleResult) {}
+ 
+  // AssignCapability assigns or removes capabilities on an entity or
+  // a group.
+  rpc ManageCapabilities(ModCapabilityRequest) returns (SimpleResult) {}
 
 
   ///////////////////////
@@ -361,8 +365,27 @@ message ModGroupNestingRequest {
   // default is to include.
   optional ExpansionMode Mode = 4;
 
-  // Like other requests this contains info about the  caller
+  // Like other requests this contains info about the caller
   optional ClientInfo Info = 5;
+}
+
+message ModCapabilityRequest {
+  // This action must be authorized
+  required string AuthToken = 1;
+
+  // Either an entity or a group must be specified, if both are
+  // specified, the group will be ignored.
+  optional Entity Entity = 2;
+  optional Group Group = 3;
+
+  // The mode can be either 'ADD' or 'REMOVE'
+  required string Mode = 4;
+
+  // And of course, the capability must be specified
+  required Capability Capability = 5;
+
+  // Like other requests this contains info about the caller
+  optional ClientInfo Info = 6;
 }
 
 // The PingRequest is used to ask the server to return its health
