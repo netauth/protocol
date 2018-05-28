@@ -163,7 +163,7 @@ message Entity {
   // An entity might also be identified by a unique ID number.  This
   // case is most common when some program wishes to get information
   // about an entity.
-  optional int32 uidNumber = 2;
+  optional int32 Number = 2;
 
   // The entity may have a secret which they will use to authenticate
   // themselves.
@@ -224,7 +224,7 @@ message Group {
   // On *nix systems the group should also have a number.  This number
   // should be the same across all systems since it may be used for
   // internal matching of users.
-  optional int32 gidNumber = 3;
+  optional int32 Number = 3;
 
   // Groups may have capabilities that are conferred to members of the
   // group on a membership basis.  This is the preferred way of
@@ -299,46 +299,46 @@ message EntityMeta {
   // This stores the legal name (if used) that owns this security
   // entity.  This primarily here for places where knowing the single
   // owning entity is a requirement for compliance reasons.
-  optional string legalName = 3;
+  optional string LegalName = 3;
 
   // This field is for the display value of the legalName.  This lets
   // the displayed value fluctuate with no connection to the actual
   // identity of the owning entity.
-  optional string displayName = 4;
+  optional string DisplayName = 4;
 
   // Given that the entity identity and auth are provided by the
   // network, its not unlikely that the home directory for the entity
   // is as well.  This string contains the fully qualified path to the
   // home directory.
-  optional string homedir = 5;
+  optional string Home = 5;
 
   // This string is the canonical 'user command interpreter' specified
   // in the passwd file.  This value provided by this field must be
   // safe to use on all target systems as setting this to something
   // that doesn't exist on the targets will cause the login program to
   // abort when setting up the environment.
-  optional string shell = 6;
+  optional string Shell = 6;
 
   // This is for the graphical shell, primarily for when the entity is
   // a person (though machine entities might also need to have a
   // graphical shell set).  This provides a handy place to store it,
   // but unfortunately a seperate mechanism is needed to get this into
   // the systems that actually setup the graphical environment.
-  optional string graphicalShell = 7;
+  optional string GraphicalShell = 7;
 
   // Person entities may have a physical badge which gets them access
   // to things, and machine entities may have an asset tag which is
   // nice to keep track of.  This is a string rather than a number
   // because the badge "number" might actually be a UUID or something
   // that is not otherwise a pure number.
-  optional string badgeNumber = 8;
+  optional string BadgeNumber = 8;
 
   // Entities may be direct members of groups
-  repeated string groups = 9;
+  repeated string Groups = 9;
 
   // Entities may have capabilities that provide special actions to
   // the holder within NetAuth.
-  repeated Capability capabilities = 10;
+  repeated Capability Capabilities = 10;
 }
 
 // GroupMemberList is returned when a query generates a list of
@@ -376,8 +376,8 @@ message PingRequest {
 // and ready to serve.
 message PingResponse {
   // The server will reply healthy=True if it is ready to serve.
-  optional bool healthy = 1;
+  optional bool Healthy = 1;
 
   // Optionally the server may have a message if it is not healthy.
-  optional string msg = 2;
+  optional string Msg = 2;
 }
