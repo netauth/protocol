@@ -11,14 +11,15 @@ option go_package = "github.com/NetAuth/Protocol";
 // user.
 enum Capability {
   GLOBAL_ROOT = 0;
-  CREATE_ENTITY = 1;
-  DESTORY_ENTITY = 2;
-  MODIFY_ENTITY_META = 3;
-  CHANGE_ENTITY_SECRET = 4;
-  CREATE_GROUP = 5;
-  DESTROY_GROUP = 6;
-  MODIFY_GROUP_META = 7;
-  MODIFY_GROUP_MEMBERS = 8;
+  CREATE_ENTITY = 10;
+  DESTORY_ENTITY = 11;
+  MODIFY_ENTITY_META = 12;
+  MODIFY_ENTITY_KEYS = 13;
+  CHANGE_ENTITY_SECRET = 14;
+  CREATE_GROUP = 20;
+  DESTROY_GROUP = 21;
+  MODIFY_GROUP_META = 22;
+  MODIFY_GROUP_MEMBERS = 23;
 }
 
 // Group expansions can either be to include children of the named
@@ -66,6 +67,7 @@ service NetAuth {
   // Get and set meta information about entities
   rpc EntityInfo(NetAuthRequest) returns (Entity) {}
   rpc ModifyEntityMeta(ModEntityRequest) returns (SimpleResult) {}
+  rpc ModifyEntityKeys(ModEntityKeyRequest) returns (KeyList) {}
 
 
   //////////////////////
@@ -139,6 +141,21 @@ message ModEntityRequest {
   required string AuthToken = 4;
 }
 
+// Modify the keys for a given entity
+message ModEntityKeyRequest {
+  // The request must have an entity and token to authorize the
+  // change, from there it may have a mode, type, and key, but these
+  // are not required.
+  required Entity Entity = 1;
+  required string AuthToken = 2;
+  optional ClientInfo Info = 3;
+
+  // Contents for the key change itself
+  optional string Mode = 4;
+  optional string Type = 5;
+  optional string Key = 6;
+}
+
 message ModEntityMembershipRequest {
   // The entity in question
   required Entity entity = 1;
@@ -208,6 +225,11 @@ message TokenResult {
   // Token contains the token if the request was successful or is
   // empty otherwise.
   optional string Token = 3;
+}
+
+// A KeyList is a list of keys.
+message KeyList {
+  repeated string Keys = 1;
 }
 
 // While machine entities may belong to only one group, people
@@ -343,6 +365,12 @@ message EntityMeta {
   // Entities may have capabilities that provide special actions to
   // the holder within NetAuth.
   repeated Capability Capabilities = 10;
+
+  // Entities may also have one or more Keys associated with them.
+  // This is deliberately untyped to allow it to be TYPE:KEY rather
+  // than needing a protocol update every time a new type of key
+  // should be stored.
+  repeated string Keys = 11;
 }
 
 // GroupMemberList is returned when a query generates a list of
