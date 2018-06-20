@@ -8,27 +8,27 @@ It is generated from these files:
 	NetAuth.proto
 
 It has these top-level messages:
-	ClientInfo
 	NetAuthRequest
 	ModEntityRequest
 	ModEntityKeyRequest
 	ModEntityMembershipRequest
-	Entity
-	SimpleResult
-	TokenResult
-	KeyList
-	Group
+	ModGroupNestingRequest
+	ModCapabilityRequest
 	ModGroupRequest
 	GroupMemberRequest
 	GroupListRequest
+	SimpleResult
+	TokenResult
+	KeyList
 	GroupList
 	GroupInfoResult
-	EntityMeta
 	EntityList
-	ModGroupNestingRequest
-	ModCapabilityRequest
 	PingRequest
 	PingResponse
+	Entity
+	EntityMeta
+	Group
+	ClientInfo
 */
 package Protocol
 
@@ -153,42 +153,6 @@ func (x *ExpansionMode) UnmarshalJSON(data []byte) error {
 }
 func (ExpansionMode) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
-// The ClientInfo message contains information about the client
-// originating the request.  This information must not be used for
-// security functions of any kind, as it is directly editable by the
-// client.
-type ClientInfo struct {
-	// The ID is to be used to define the originating client, this
-	// should in general be set to the client's hostname, or otherwise
-	// some persistent system identifier.
-	ID *string `protobuf:"bytes,1,opt,name=ID" json:"ID,omitempty"`
-	// The Service is an identifier that defined what is asking the
-	// system for information.  This should usually be set to the
-	// application name, or 'SYSTEM' if the request is on behalf of the
-	// system itself.
-	Service          *string `protobuf:"bytes,2,opt,name=Service" json:"Service,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
-}
-
-func (m *ClientInfo) Reset()                    { *m = ClientInfo{} }
-func (m *ClientInfo) String() string            { return proto.CompactTextString(m) }
-func (*ClientInfo) ProtoMessage()               {}
-func (*ClientInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
-
-func (m *ClientInfo) GetID() string {
-	if m != nil && m.ID != nil {
-		return *m.ID
-	}
-	return ""
-}
-
-func (m *ClientInfo) GetService() string {
-	if m != nil && m.Service != nil {
-		return *m.Service
-	}
-	return ""
-}
-
 // An AuthRequest includes an Entity and some information to identify
 // the system that is making the request.
 type NetAuthRequest struct {
@@ -204,7 +168,7 @@ type NetAuthRequest struct {
 func (m *NetAuthRequest) Reset()                    { *m = NetAuthRequest{} }
 func (m *NetAuthRequest) String() string            { return proto.CompactTextString(m) }
 func (*NetAuthRequest) ProtoMessage()               {}
-func (*NetAuthRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+func (*NetAuthRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
 func (m *NetAuthRequest) GetEntity() *Entity {
 	if m != nil {
@@ -227,9 +191,11 @@ func (m *NetAuthRequest) GetInfo() *ClientInfo {
 	return nil
 }
 
-// A ModEntityRequest takes an entity to authorize and an entity to
-// act upon.  These may be the same entity for changes being applied
-// by an entity to itself.
+// ModEntityRequests use  an entity  and optionally a  modEntity.  For
+// all  requests except  changing  the secret,  the authentication  is
+// derived  from the  AuthToken.  In  the  case of  the change  secret
+// request the entity may need  to authenticate via secret if changing
+// parameters on itself.
 type ModEntityRequest struct {
 	// The request must always have an entity, the second entity may not
 	// be set in which case the first entity will be acted upon.
@@ -247,7 +213,7 @@ type ModEntityRequest struct {
 func (m *ModEntityRequest) Reset()                    { *m = ModEntityRequest{} }
 func (m *ModEntityRequest) String() string            { return proto.CompactTextString(m) }
 func (*ModEntityRequest) ProtoMessage()               {}
-func (*ModEntityRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+func (*ModEntityRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
 func (m *ModEntityRequest) GetEntity() *Entity {
 	if m != nil {
@@ -277,7 +243,8 @@ func (m *ModEntityRequest) GetAuthToken() string {
 	return ""
 }
 
-// Modify the keys for a given entity
+// Modify the keys for a given entity.  If the caller wishes to just
+// list keys in an unauthenticated fashion, pass an empty token.
 type ModEntityKeyRequest struct {
 	// The request must have an entity and token to authorize the
 	// change, from there it may have a mode, type, and key, but these
@@ -295,7 +262,7 @@ type ModEntityKeyRequest struct {
 func (m *ModEntityKeyRequest) Reset()                    { *m = ModEntityKeyRequest{} }
 func (m *ModEntityKeyRequest) String() string            { return proto.CompactTextString(m) }
 func (*ModEntityKeyRequest) ProtoMessage()               {}
-func (*ModEntityKeyRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+func (*ModEntityKeyRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
 
 func (m *ModEntityKeyRequest) GetEntity() *Entity {
 	if m != nil {
@@ -339,6 +306,8 @@ func (m *ModEntityKeyRequest) GetKey() string {
 	return ""
 }
 
+// ModEntityMembershipRequest alters the direct membership of
+// entities.  See ModGroupNestingRequest for indirect memberships.
 type ModEntityMembershipRequest struct {
 	// The entity in question
 	Entity *Entity `protobuf:"bytes,1,req,name=entity" json:"entity,omitempty"`
@@ -355,7 +324,7 @@ type ModEntityMembershipRequest struct {
 func (m *ModEntityMembershipRequest) Reset()                    { *m = ModEntityMembershipRequest{} }
 func (m *ModEntityMembershipRequest) String() string            { return proto.CompactTextString(m) }
 func (*ModEntityMembershipRequest) ProtoMessage()               {}
-func (*ModEntityMembershipRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+func (*ModEntityMembershipRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
 func (m *ModEntityMembershipRequest) GetEntity() *Entity {
 	if m != nil {
@@ -385,60 +354,234 @@ func (m *ModEntityMembershipRequest) GetAuthToken() string {
 	return ""
 }
 
-// An entity may be a person or a machine actor that wishes to act as
-// some identity.  To do so they will need to transmit an ID and a
-// secret which will be used to verify that they are who they say they
-// are.
-type Entity struct {
-	// The entity may be identified by a string.  This is most common
-	// for the initial authentication case where a people-entity has
-	// typed a name in and now wishes to be authenticated.
-	ID *string `protobuf:"bytes,1,opt,name=ID" json:"ID,omitempty"`
-	// An entity might also be identified by a unique ID number.  This
-	// case is most common when some program wishes to get information
-	// about an entity.
-	Number *int32 `protobuf:"varint,2,opt,name=Number" json:"Number,omitempty"`
-	// The entity may have a secret which they will use to authenticate
-	// themselves.
-	Secret *string `protobuf:"bytes,3,opt,name=secret" json:"secret,omitempty"`
-	// For requests that update the meta information this must be
-	// attatched to the entity itself.  This also allows the in-memory
-	// format to be defined by this proto.
-	Meta             *EntityMeta `protobuf:"bytes,4,opt,name=meta" json:"meta,omitempty"`
+// ModGroupNestingRequest handles the addition or removal of group
+// nesting operations.
+type ModGroupNestingRequest struct {
+	// This action must be authorized
+	AuthToken *string `protobuf:"bytes,1,req,name=AuthToken" json:"AuthToken,omitempty"`
+	// There must be a parent and child group for each request.
+	ParentGroup *Group `protobuf:"bytes,2,req,name=ParentGroup" json:"ParentGroup,omitempty"`
+	ChildGroup  *Group `protobuf:"bytes,3,req,name=ChildGroup" json:"ChildGroup,omitempty"`
+	// Expansions can either include children or exclude them.  The
+	// default is to include.
+	Mode *ExpansionMode `protobuf:"varint,4,opt,name=Mode,enum=ExpansionMode" json:"Mode,omitempty"`
+	// Like other requests this contains info about the caller
+	Info             *ClientInfo `protobuf:"bytes,5,opt,name=Info" json:"Info,omitempty"`
 	XXX_unrecognized []byte      `json:"-"`
 }
 
-func (m *Entity) Reset()                    { *m = Entity{} }
-func (m *Entity) String() string            { return proto.CompactTextString(m) }
-func (*Entity) ProtoMessage()               {}
-func (*Entity) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
+func (m *ModGroupNestingRequest) Reset()                    { *m = ModGroupNestingRequest{} }
+func (m *ModGroupNestingRequest) String() string            { return proto.CompactTextString(m) }
+func (*ModGroupNestingRequest) ProtoMessage()               {}
+func (*ModGroupNestingRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
 
-func (m *Entity) GetID() string {
-	if m != nil && m.ID != nil {
-		return *m.ID
+func (m *ModGroupNestingRequest) GetAuthToken() string {
+	if m != nil && m.AuthToken != nil {
+		return *m.AuthToken
 	}
 	return ""
 }
 
-func (m *Entity) GetNumber() int32 {
-	if m != nil && m.Number != nil {
-		return *m.Number
-	}
-	return 0
-}
-
-func (m *Entity) GetSecret() string {
-	if m != nil && m.Secret != nil {
-		return *m.Secret
-	}
-	return ""
-}
-
-func (m *Entity) GetMeta() *EntityMeta {
+func (m *ModGroupNestingRequest) GetParentGroup() *Group {
 	if m != nil {
-		return m.Meta
+		return m.ParentGroup
 	}
 	return nil
+}
+
+func (m *ModGroupNestingRequest) GetChildGroup() *Group {
+	if m != nil {
+		return m.ChildGroup
+	}
+	return nil
+}
+
+func (m *ModGroupNestingRequest) GetMode() ExpansionMode {
+	if m != nil && m.Mode != nil {
+		return *m.Mode
+	}
+	return ExpansionMode_INCLUDE
+}
+
+func (m *ModGroupNestingRequest) GetInfo() *ClientInfo {
+	if m != nil {
+		return m.Info
+	}
+	return nil
+}
+
+// ModCapabilityRequest can alter the capabilities assigned to either
+// an entity or group.  If the entity is specified the group will be
+// ignored.
+type ModCapabilityRequest struct {
+	// This action must be authorized
+	AuthToken *string `protobuf:"bytes,1,req,name=AuthToken" json:"AuthToken,omitempty"`
+	// Either an entity or a group must be specified, if both are
+	// specified, the group will be ignored.
+	Entity *Entity `protobuf:"bytes,2,opt,name=Entity" json:"Entity,omitempty"`
+	Group  *Group  `protobuf:"bytes,3,opt,name=Group" json:"Group,omitempty"`
+	// The mode can be either 'ADD' or 'REMOVE'
+	Mode *string `protobuf:"bytes,4,req,name=Mode" json:"Mode,omitempty"`
+	// And of course, the capability must be specified
+	Capability *Capability `protobuf:"varint,5,req,name=Capability,enum=Capability" json:"Capability,omitempty"`
+	// Like other requests this contains info about the caller
+	Info             *ClientInfo `protobuf:"bytes,6,opt,name=Info" json:"Info,omitempty"`
+	XXX_unrecognized []byte      `json:"-"`
+}
+
+func (m *ModCapabilityRequest) Reset()                    { *m = ModCapabilityRequest{} }
+func (m *ModCapabilityRequest) String() string            { return proto.CompactTextString(m) }
+func (*ModCapabilityRequest) ProtoMessage()               {}
+func (*ModCapabilityRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
+
+func (m *ModCapabilityRequest) GetAuthToken() string {
+	if m != nil && m.AuthToken != nil {
+		return *m.AuthToken
+	}
+	return ""
+}
+
+func (m *ModCapabilityRequest) GetEntity() *Entity {
+	if m != nil {
+		return m.Entity
+	}
+	return nil
+}
+
+func (m *ModCapabilityRequest) GetGroup() *Group {
+	if m != nil {
+		return m.Group
+	}
+	return nil
+}
+
+func (m *ModCapabilityRequest) GetMode() string {
+	if m != nil && m.Mode != nil {
+		return *m.Mode
+	}
+	return ""
+}
+
+func (m *ModCapabilityRequest) GetCapability() Capability {
+	if m != nil && m.Capability != nil {
+		return *m.Capability
+	}
+	return Capability_GLOBAL_ROOT
+}
+
+func (m *ModCapabilityRequest) GetInfo() *ClientInfo {
+	if m != nil {
+		return m.Info
+	}
+	return nil
+}
+
+// ModGroupRequest is used for modifying the a group.  This action can
+// only modify some fields on a group, as the name and number are
+// immutable after creation.
+type ModGroupRequest struct {
+	// The AuthToken for authorization of changes to the database.
+	AuthToken *string `protobuf:"bytes,1,req,name=AuthToken" json:"AuthToken,omitempty"`
+	// The group that's being modified.
+	Group *Group `protobuf:"bytes,2,req,name=Group" json:"Group,omitempty"`
+	// Client information for logging
+	Info             *ClientInfo `protobuf:"bytes,3,opt,name=Info" json:"Info,omitempty"`
+	XXX_unrecognized []byte      `json:"-"`
+}
+
+func (m *ModGroupRequest) Reset()                    { *m = ModGroupRequest{} }
+func (m *ModGroupRequest) String() string            { return proto.CompactTextString(m) }
+func (*ModGroupRequest) ProtoMessage()               {}
+func (*ModGroupRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+
+func (m *ModGroupRequest) GetAuthToken() string {
+	if m != nil && m.AuthToken != nil {
+		return *m.AuthToken
+	}
+	return ""
+}
+
+func (m *ModGroupRequest) GetGroup() *Group {
+	if m != nil {
+		return m.Group
+	}
+	return nil
+}
+
+func (m *ModGroupRequest) GetInfo() *ClientInfo {
+	if m != nil {
+		return m.Info
+	}
+	return nil
+}
+
+// A GroupMemberRequest requests the members of a given group.  This
+// query is quite expensive and is fairly unoptimized, consider
+// carefully if you need to use this in your application.
+type GroupMemberRequest struct {
+	// The group for which info is being requested.
+	Group *Group `protobuf:"bytes,1,opt,name=Group" json:"Group,omitempty"`
+	// Client information for logging
+	Info             *ClientInfo `protobuf:"bytes,2,opt,name=Info" json:"Info,omitempty"`
+	XXX_unrecognized []byte      `json:"-"`
+}
+
+func (m *GroupMemberRequest) Reset()                    { *m = GroupMemberRequest{} }
+func (m *GroupMemberRequest) String() string            { return proto.CompactTextString(m) }
+func (*GroupMemberRequest) ProtoMessage()               {}
+func (*GroupMemberRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+
+func (m *GroupMemberRequest) GetGroup() *Group {
+	if m != nil {
+		return m.Group
+	}
+	return nil
+}
+
+func (m *GroupMemberRequest) GetInfo() *ClientInfo {
+	if m != nil {
+		return m.Info
+	}
+	return nil
+}
+
+// A GroupListRequest summons the listing of groups for the provided
+// entity.  Optionally the client may disable indirect lookups, but
+// this is not the default due to this causing unintuitive group
+// results to be returned.
+type GroupListRequest struct {
+	Info             *ClientInfo `protobuf:"bytes,1,opt,name=Info" json:"Info,omitempty"`
+	Entity           *Entity     `protobuf:"bytes,2,opt,name=Entity" json:"Entity,omitempty"`
+	IncludeIndirects *bool       `protobuf:"varint,3,opt,name=IncludeIndirects,def=1" json:"IncludeIndirects,omitempty"`
+	XXX_unrecognized []byte      `json:"-"`
+}
+
+func (m *GroupListRequest) Reset()                    { *m = GroupListRequest{} }
+func (m *GroupListRequest) String() string            { return proto.CompactTextString(m) }
+func (*GroupListRequest) ProtoMessage()               {}
+func (*GroupListRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+
+const Default_GroupListRequest_IncludeIndirects bool = true
+
+func (m *GroupListRequest) GetInfo() *ClientInfo {
+	if m != nil {
+		return m.Info
+	}
+	return nil
+}
+
+func (m *GroupListRequest) GetEntity() *Entity {
+	if m != nil {
+		return m.Entity
+	}
+	return nil
+}
+
+func (m *GroupListRequest) GetIncludeIndirects() bool {
+	if m != nil && m.IncludeIndirects != nil {
+		return *m.IncludeIndirects
+	}
+	return Default_GroupListRequest_IncludeIndirects
 }
 
 // A SimpleResult can be returned from most services and explains
@@ -459,7 +602,7 @@ type SimpleResult struct {
 func (m *SimpleResult) Reset()                    { *m = SimpleResult{} }
 func (m *SimpleResult) String() string            { return proto.CompactTextString(m) }
 func (*SimpleResult) ProtoMessage()               {}
-func (*SimpleResult) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+func (*SimpleResult) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
 
 const Default_SimpleResult_Success bool = false
 
@@ -495,7 +638,7 @@ type TokenResult struct {
 func (m *TokenResult) Reset()                    { *m = TokenResult{} }
 func (m *TokenResult) String() string            { return proto.CompactTextString(m) }
 func (*TokenResult) ProtoMessage()               {}
-func (*TokenResult) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+func (*TokenResult) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
 
 const Default_TokenResult_Success bool = false
 
@@ -529,7 +672,7 @@ type KeyList struct {
 func (m *KeyList) Reset()                    { *m = KeyList{} }
 func (m *KeyList) String() string            { return proto.CompactTextString(m) }
 func (*KeyList) ProtoMessage()               {}
-func (*KeyList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+func (*KeyList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
 
 func (m *KeyList) GetKeys() []string {
 	if m != nil {
@@ -538,188 +681,8 @@ func (m *KeyList) GetKeys() []string {
 	return nil
 }
 
-// While machine entities may belong to only one group, people
-// entities often belong to many groups at once.  This message
-// structures the reply for the additional groups.
-type Group struct {
-	// A group name must satisfy the requirements of the UNIX group
-	// naming conventions.  This should be one word, lower case, with no
-	// spaces and cannot begin with a number.
-	Name *string `protobuf:"bytes,1,opt,name=Name" json:"Name,omitempty"`
-	// Since the name has strict naming requirements, its nice to have a
-	// displayName for the group which has a more friendly display.
-	// Instead of trying to reason out what naacct means, its much nicer
-	// to just know that its "Accounting team - North America"
-	DisplayName *string `protobuf:"bytes,2,opt,name=DisplayName" json:"DisplayName,omitempty"`
-	// On *nix systems the group should also have a number.  This number
-	// should be the same across all systems since it may be used for
-	// internal matching of users.
-	Number *int32 `protobuf:"varint,3,opt,name=Number" json:"Number,omitempty"`
-	// Groups can be managed by other groups.  For a group to be self
-	// managed, one would set the managed by group to be the group
-	// itself.
-	ManagedBy *string `protobuf:"bytes,5,opt,name=ManagedBy" json:"ManagedBy,omitempty"`
-	// Groups may have capabilities that are conferred to members of the
-	// group on a membership basis.  This is the preferred way of
-	// granting capabilities to an entity since it means that when an
-	// entity is removed from the group they lose the capabilities that
-	// were granted from it.
-	Capabilities []Capability `protobuf:"varint,50,rep,name=Capabilities,enum=Capability" json:"Capabilities,omitempty"`
-	// Groups can also be members of other groups.  This allows a group
-	// to appear to contain a larger membership and build this
-	// membership based on potentially very intricate include/exclude
-	// rules.  The format of this field is "<mode>:<group>" so if you
-	// were including the membership of 'foo', then it would have the
-	// value of "INCLUDE:foo".
-	Expansions       []string `protobuf:"bytes,51,rep,name=Expansions" json:"Expansions,omitempty"`
-	XXX_unrecognized []byte   `json:"-"`
-}
-
-func (m *Group) Reset()                    { *m = Group{} }
-func (m *Group) String() string            { return proto.CompactTextString(m) }
-func (*Group) ProtoMessage()               {}
-func (*Group) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
-
-func (m *Group) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
-	}
-	return ""
-}
-
-func (m *Group) GetDisplayName() string {
-	if m != nil && m.DisplayName != nil {
-		return *m.DisplayName
-	}
-	return ""
-}
-
-func (m *Group) GetNumber() int32 {
-	if m != nil && m.Number != nil {
-		return *m.Number
-	}
-	return 0
-}
-
-func (m *Group) GetManagedBy() string {
-	if m != nil && m.ManagedBy != nil {
-		return *m.ManagedBy
-	}
-	return ""
-}
-
-func (m *Group) GetCapabilities() []Capability {
-	if m != nil {
-		return m.Capabilities
-	}
-	return nil
-}
-
-func (m *Group) GetExpansions() []string {
-	if m != nil {
-		return m.Expansions
-	}
-	return nil
-}
-
-type ModGroupRequest struct {
-	// The AuthToken for authorization of changes to the database.
-	AuthToken *string `protobuf:"bytes,1,req,name=AuthToken" json:"AuthToken,omitempty"`
-	// The group that's being modified.
-	Group *Group `protobuf:"bytes,2,req,name=Group" json:"Group,omitempty"`
-	// Client information for logging
-	Info             *ClientInfo `protobuf:"bytes,3,opt,name=Info" json:"Info,omitempty"`
-	XXX_unrecognized []byte      `json:"-"`
-}
-
-func (m *ModGroupRequest) Reset()                    { *m = ModGroupRequest{} }
-func (m *ModGroupRequest) String() string            { return proto.CompactTextString(m) }
-func (*ModGroupRequest) ProtoMessage()               {}
-func (*ModGroupRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
-
-func (m *ModGroupRequest) GetAuthToken() string {
-	if m != nil && m.AuthToken != nil {
-		return *m.AuthToken
-	}
-	return ""
-}
-
-func (m *ModGroupRequest) GetGroup() *Group {
-	if m != nil {
-		return m.Group
-	}
-	return nil
-}
-
-func (m *ModGroupRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
-	}
-	return nil
-}
-
-type GroupMemberRequest struct {
-	// The group for which info is being requested.
-	Group *Group `protobuf:"bytes,1,opt,name=Group" json:"Group,omitempty"`
-	// Client information for logging
-	Info             *ClientInfo `protobuf:"bytes,2,opt,name=Info" json:"Info,omitempty"`
-	XXX_unrecognized []byte      `json:"-"`
-}
-
-func (m *GroupMemberRequest) Reset()                    { *m = GroupMemberRequest{} }
-func (m *GroupMemberRequest) String() string            { return proto.CompactTextString(m) }
-func (*GroupMemberRequest) ProtoMessage()               {}
-func (*GroupMemberRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
-
-func (m *GroupMemberRequest) GetGroup() *Group {
-	if m != nil {
-		return m.Group
-	}
-	return nil
-}
-
-func (m *GroupMemberRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
-	}
-	return nil
-}
-
-type GroupListRequest struct {
-	Info             *ClientInfo `protobuf:"bytes,1,opt,name=Info" json:"Info,omitempty"`
-	Entity           *Entity     `protobuf:"bytes,2,opt,name=Entity" json:"Entity,omitempty"`
-	IncludeIndirects *bool       `protobuf:"varint,3,opt,name=IncludeIndirects,def=1" json:"IncludeIndirects,omitempty"`
-	XXX_unrecognized []byte      `json:"-"`
-}
-
-func (m *GroupListRequest) Reset()                    { *m = GroupListRequest{} }
-func (m *GroupListRequest) String() string            { return proto.CompactTextString(m) }
-func (*GroupListRequest) ProtoMessage()               {}
-func (*GroupListRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
-
-const Default_GroupListRequest_IncludeIndirects bool = true
-
-func (m *GroupListRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
-	}
-	return nil
-}
-
-func (m *GroupListRequest) GetEntity() *Entity {
-	if m != nil {
-		return m.Entity
-	}
-	return nil
-}
-
-func (m *GroupListRequest) GetIncludeIndirects() bool {
-	if m != nil && m.IncludeIndirects != nil {
-		return *m.IncludeIndirects
-	}
-	return Default_GroupListRequest_IncludeIndirects
-}
-
+// A GroupList contains a literal list of groups, such as returned by
+// a search function.
 type GroupList struct {
 	Groups           []*Group `protobuf:"bytes,1,rep,name=Groups" json:"Groups,omitempty"`
 	XXX_unrecognized []byte   `json:"-"`
@@ -728,7 +691,7 @@ type GroupList struct {
 func (m *GroupList) Reset()                    { *m = GroupList{} }
 func (m *GroupList) String() string            { return proto.CompactTextString(m) }
 func (*GroupList) ProtoMessage()               {}
-func (*GroupList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
+func (*GroupList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
 
 func (m *GroupList) GetGroups() []*Group {
 	if m != nil {
@@ -737,6 +700,8 @@ func (m *GroupList) GetGroups() []*Group {
 	return nil
 }
 
+// A GroupInfoResult contains exactly one group, and for convenience a
+// list of groups that this group manages.
 type GroupInfoResult struct {
 	Group            *Group   `protobuf:"bytes,1,req,name=Group" json:"Group,omitempty"`
 	Managed          []string `protobuf:"bytes,2,rep,name=Managed" json:"Managed,omitempty"`
@@ -746,7 +711,7 @@ type GroupInfoResult struct {
 func (m *GroupInfoResult) Reset()                    { *m = GroupInfoResult{} }
 func (m *GroupInfoResult) String() string            { return proto.CompactTextString(m) }
 func (*GroupInfoResult) ProtoMessage()               {}
-func (*GroupInfoResult) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
+func (*GroupInfoResult) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
 
 func (m *GroupInfoResult) GetGroup() *Group {
 	if m != nil {
@@ -762,6 +727,134 @@ func (m *GroupInfoResult) GetManaged() []string {
 	return nil
 }
 
+// GroupMemberList is returned when a query generates a list of
+// entities.
+type EntityList struct {
+	Members          []*Entity `protobuf:"bytes,1,rep,name=Members" json:"Members,omitempty"`
+	XXX_unrecognized []byte    `json:"-"`
+}
+
+func (m *EntityList) Reset()                    { *m = EntityList{} }
+func (m *EntityList) String() string            { return proto.CompactTextString(m) }
+func (*EntityList) ProtoMessage()               {}
+func (*EntityList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
+
+func (m *EntityList) GetMembers() []*Entity {
+	if m != nil {
+		return m.Members
+	}
+	return nil
+}
+
+// The PingRequest is used to ask the server to return its health
+// status to the requestor.
+type PingRequest struct {
+	// Client information for logging
+	Info             *ClientInfo `protobuf:"bytes,1,opt,name=Info" json:"Info,omitempty"`
+	XXX_unrecognized []byte      `json:"-"`
+}
+
+func (m *PingRequest) Reset()                    { *m = PingRequest{} }
+func (m *PingRequest) String() string            { return proto.CompactTextString(m) }
+func (*PingRequest) ProtoMessage()               {}
+func (*PingRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
+
+func (m *PingRequest) GetInfo() *ClientInfo {
+	if m != nil {
+		return m.Info
+	}
+	return nil
+}
+
+// The PingReply is used to tell the client if this server is healthy
+// and ready to serve.
+type PingResponse struct {
+	// The server will reply healthy=True if it is ready to serve.
+	Healthy *bool `protobuf:"varint,1,opt,name=Healthy" json:"Healthy,omitempty"`
+	// Optionally the server may have a message if it is not healthy.
+	Msg              *string `protobuf:"bytes,2,opt,name=Msg" json:"Msg,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
+}
+
+func (m *PingResponse) Reset()                    { *m = PingResponse{} }
+func (m *PingResponse) String() string            { return proto.CompactTextString(m) }
+func (*PingResponse) ProtoMessage()               {}
+func (*PingResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
+
+func (m *PingResponse) GetHealthy() bool {
+	if m != nil && m.Healthy != nil {
+		return *m.Healthy
+	}
+	return false
+}
+
+func (m *PingResponse) GetMsg() string {
+	if m != nil && m.Msg != nil {
+		return *m.Msg
+	}
+	return ""
+}
+
+// An entity may be a person or a machine actor that wishes to act as
+// some identity.  To do so they will need to transmit an ID and a
+// secret which will be used to verify that they are who they say they
+// are.
+type Entity struct {
+	// The entity may be identified by a string.  This is most common
+	// for the initial authentication case where a people-entity has
+	// typed a name in and now wishes to be authenticated.
+	ID *string `protobuf:"bytes,1,opt,name=ID" json:"ID,omitempty"`
+	// An entity might also be identified by a unique ID number.  This
+	// case is most common when some program wishes to get information
+	// about an entity.
+	Number *int32 `protobuf:"varint,2,opt,name=Number" json:"Number,omitempty"`
+	// The entity may have a secret which they will use to authenticate
+	// themselves.
+	Secret *string `protobuf:"bytes,3,opt,name=secret" json:"secret,omitempty"`
+	// For requests that update the meta information this must be
+	// attatched to the entity itself.  This also allows the in-memory
+	// format to be defined by this proto.
+	Meta             *EntityMeta `protobuf:"bytes,4,opt,name=meta" json:"meta,omitempty"`
+	XXX_unrecognized []byte      `json:"-"`
+}
+
+func (m *Entity) Reset()                    { *m = Entity{} }
+func (m *Entity) String() string            { return proto.CompactTextString(m) }
+func (*Entity) ProtoMessage()               {}
+func (*Entity) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
+
+func (m *Entity) GetID() string {
+	if m != nil && m.ID != nil {
+		return *m.ID
+	}
+	return ""
+}
+
+func (m *Entity) GetNumber() int32 {
+	if m != nil && m.Number != nil {
+		return *m.Number
+	}
+	return 0
+}
+
+func (m *Entity) GetSecret() string {
+	if m != nil && m.Secret != nil {
+		return *m.Secret
+	}
+	return ""
+}
+
+func (m *Entity) GetMeta() *EntityMeta {
+	if m != nil {
+		return m.Meta
+	}
+	return nil
+}
+
+// The EntityMeta structure contains additional information about the
+// entity in question.  This is the "directory" part of NetAuth's
+// ecosystem and contains information you might want to know about an
+// entity.
 type EntityMeta struct {
 	// The primary group ID for the entity.  On most UNIX systems this
 	// will map to a group with the same string representation as the
@@ -822,7 +915,7 @@ type EntityMeta struct {
 func (m *EntityMeta) Reset()                    { *m = EntityMeta{} }
 func (m *EntityMeta) String() string            { return proto.CompactTextString(m) }
 func (*EntityMeta) ProtoMessage()               {}
-func (*EntityMeta) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
+func (*EntityMeta) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
 
 func (m *EntityMeta) GetPgid() *Group {
 	if m != nil {
@@ -901,215 +994,148 @@ func (m *EntityMeta) GetKeys() []string {
 	return nil
 }
 
-// GroupMemberList is returned when a query generates a list of
-// entities.
-type EntityList struct {
-	Members          []*Entity `protobuf:"bytes,1,rep,name=Members" json:"Members,omitempty"`
-	XXX_unrecognized []byte    `json:"-"`
+// While machine entities may belong to only one group, people
+// entities often belong to many groups at once.  This message
+// structures the reply for the additional groups.
+type Group struct {
+	// A group name must satisfy the requirements of the UNIX group
+	// naming conventions.  This should be one word, lower case, with no
+	// spaces and cannot begin with a number.
+	Name *string `protobuf:"bytes,1,opt,name=Name" json:"Name,omitempty"`
+	// Since the name has strict naming requirements, its nice to have a
+	// displayName for the group which has a more friendly display.
+	// Instead of trying to reason out what naacct means, its much nicer
+	// to just know that its "Accounting team - North America"
+	DisplayName *string `protobuf:"bytes,2,opt,name=DisplayName" json:"DisplayName,omitempty"`
+	// On *nix systems the group should also have a number.  This number
+	// should be the same across all systems since it may be used for
+	// internal matching of users.
+	Number *int32 `protobuf:"varint,3,opt,name=Number" json:"Number,omitempty"`
+	// Groups can be managed by other groups.  For a group to be self
+	// managed, one would set the managed by group to be the group
+	// itself.
+	ManagedBy *string `protobuf:"bytes,5,opt,name=ManagedBy" json:"ManagedBy,omitempty"`
+	// Groups may have capabilities that are conferred to members of the
+	// group on a membership basis.  This is the preferred way of
+	// granting capabilities to an entity since it means that when an
+	// entity is removed from the group they lose the capabilities that
+	// were granted from it.
+	Capabilities []Capability `protobuf:"varint,50,rep,name=Capabilities,enum=Capability" json:"Capabilities,omitempty"`
+	// Groups can also be members of other groups.  This allows a group
+	// to appear to contain a larger membership and build this
+	// membership based on potentially very intricate include/exclude
+	// rules.  The format of this field is "<mode>:<group>" so if you
+	// were including the membership of 'foo', then it would have the
+	// value of "INCLUDE:foo".
+	Expansions       []string `protobuf:"bytes,51,rep,name=Expansions" json:"Expansions,omitempty"`
+	XXX_unrecognized []byte   `json:"-"`
 }
 
-func (m *EntityList) Reset()                    { *m = EntityList{} }
-func (m *EntityList) String() string            { return proto.CompactTextString(m) }
-func (*EntityList) ProtoMessage()               {}
-func (*EntityList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
+func (m *Group) Reset()                    { *m = Group{} }
+func (m *Group) String() string            { return proto.CompactTextString(m) }
+func (*Group) ProtoMessage()               {}
+func (*Group) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
 
-func (m *EntityList) GetMembers() []*Entity {
-	if m != nil {
-		return m.Members
-	}
-	return nil
-}
-
-// ModGroupNestingRequest handles the addition or removal of group
-// nesting operations.
-type ModGroupNestingRequest struct {
-	// This action must be authorized
-	AuthToken *string `protobuf:"bytes,1,req,name=AuthToken" json:"AuthToken,omitempty"`
-	// There must be a parent and child group for each request.
-	ParentGroup *Group `protobuf:"bytes,2,req,name=ParentGroup" json:"ParentGroup,omitempty"`
-	ChildGroup  *Group `protobuf:"bytes,3,req,name=ChildGroup" json:"ChildGroup,omitempty"`
-	// Expansions can either include children or exclude them.  The
-	// default is to include.
-	Mode *ExpansionMode `protobuf:"varint,4,opt,name=Mode,enum=ExpansionMode" json:"Mode,omitempty"`
-	// Like other requests this contains info about the caller
-	Info             *ClientInfo `protobuf:"bytes,5,opt,name=Info" json:"Info,omitempty"`
-	XXX_unrecognized []byte      `json:"-"`
-}
-
-func (m *ModGroupNestingRequest) Reset()                    { *m = ModGroupNestingRequest{} }
-func (m *ModGroupNestingRequest) String() string            { return proto.CompactTextString(m) }
-func (*ModGroupNestingRequest) ProtoMessage()               {}
-func (*ModGroupNestingRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
-
-func (m *ModGroupNestingRequest) GetAuthToken() string {
-	if m != nil && m.AuthToken != nil {
-		return *m.AuthToken
-	}
-	return ""
-}
-
-func (m *ModGroupNestingRequest) GetParentGroup() *Group {
-	if m != nil {
-		return m.ParentGroup
-	}
-	return nil
-}
-
-func (m *ModGroupNestingRequest) GetChildGroup() *Group {
-	if m != nil {
-		return m.ChildGroup
-	}
-	return nil
-}
-
-func (m *ModGroupNestingRequest) GetMode() ExpansionMode {
-	if m != nil && m.Mode != nil {
-		return *m.Mode
-	}
-	return ExpansionMode_INCLUDE
-}
-
-func (m *ModGroupNestingRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
-	}
-	return nil
-}
-
-type ModCapabilityRequest struct {
-	// This action must be authorized
-	AuthToken *string `protobuf:"bytes,1,req,name=AuthToken" json:"AuthToken,omitempty"`
-	// Either an entity or a group must be specified, if both are
-	// specified, the group will be ignored.
-	Entity *Entity `protobuf:"bytes,2,opt,name=Entity" json:"Entity,omitempty"`
-	Group  *Group  `protobuf:"bytes,3,opt,name=Group" json:"Group,omitempty"`
-	// The mode can be either 'ADD' or 'REMOVE'
-	Mode *string `protobuf:"bytes,4,req,name=Mode" json:"Mode,omitempty"`
-	// And of course, the capability must be specified
-	Capability *Capability `protobuf:"varint,5,req,name=Capability,enum=Capability" json:"Capability,omitempty"`
-	// Like other requests this contains info about the caller
-	Info             *ClientInfo `protobuf:"bytes,6,opt,name=Info" json:"Info,omitempty"`
-	XXX_unrecognized []byte      `json:"-"`
-}
-
-func (m *ModCapabilityRequest) Reset()                    { *m = ModCapabilityRequest{} }
-func (m *ModCapabilityRequest) String() string            { return proto.CompactTextString(m) }
-func (*ModCapabilityRequest) ProtoMessage()               {}
-func (*ModCapabilityRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
-
-func (m *ModCapabilityRequest) GetAuthToken() string {
-	if m != nil && m.AuthToken != nil {
-		return *m.AuthToken
+func (m *Group) GetName() string {
+	if m != nil && m.Name != nil {
+		return *m.Name
 	}
 	return ""
 }
 
-func (m *ModCapabilityRequest) GetEntity() *Entity {
-	if m != nil {
-		return m.Entity
-	}
-	return nil
-}
-
-func (m *ModCapabilityRequest) GetGroup() *Group {
-	if m != nil {
-		return m.Group
-	}
-	return nil
-}
-
-func (m *ModCapabilityRequest) GetMode() string {
-	if m != nil && m.Mode != nil {
-		return *m.Mode
+func (m *Group) GetDisplayName() string {
+	if m != nil && m.DisplayName != nil {
+		return *m.DisplayName
 	}
 	return ""
 }
 
-func (m *ModCapabilityRequest) GetCapability() Capability {
-	if m != nil && m.Capability != nil {
-		return *m.Capability
+func (m *Group) GetNumber() int32 {
+	if m != nil && m.Number != nil {
+		return *m.Number
 	}
-	return Capability_GLOBAL_ROOT
+	return 0
 }
 
-func (m *ModCapabilityRequest) GetInfo() *ClientInfo {
+func (m *Group) GetManagedBy() string {
+	if m != nil && m.ManagedBy != nil {
+		return *m.ManagedBy
+	}
+	return ""
+}
+
+func (m *Group) GetCapabilities() []Capability {
 	if m != nil {
-		return m.Info
+		return m.Capabilities
 	}
 	return nil
 }
 
-// The PingRequest is used to ask the server to return its health
-// status to the requestor.
-type PingRequest struct {
-	// Client information for logging
-	Info             *ClientInfo `protobuf:"bytes,1,opt,name=Info" json:"Info,omitempty"`
-	XXX_unrecognized []byte      `json:"-"`
-}
-
-func (m *PingRequest) Reset()                    { *m = PingRequest{} }
-func (m *PingRequest) String() string            { return proto.CompactTextString(m) }
-func (*PingRequest) ProtoMessage()               {}
-func (*PingRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
-
-func (m *PingRequest) GetInfo() *ClientInfo {
+func (m *Group) GetExpansions() []string {
 	if m != nil {
-		return m.Info
+		return m.Expansions
 	}
 	return nil
 }
 
-// The PingReply is used to tell the client if this server is healthy
-// and ready to serve.
-type PingResponse struct {
-	// The server will reply healthy=True if it is ready to serve.
-	Healthy *bool `protobuf:"varint,1,opt,name=Healthy" json:"Healthy,omitempty"`
-	// Optionally the server may have a message if it is not healthy.
-	Msg              *string `protobuf:"bytes,2,opt,name=Msg" json:"Msg,omitempty"`
+// The ClientInfo message contains information about the client
+// originating the request.  This information must not be used for
+// security functions of any kind, as it is directly editable by the
+// client.
+type ClientInfo struct {
+	// The ID is to be used to define the originating client, this
+	// should in general be set to the client's hostname, or otherwise
+	// some persistent system identifier.
+	ID *string `protobuf:"bytes,1,opt,name=ID" json:"ID,omitempty"`
+	// The Service is an identifier that defined what is asking the
+	// system for information.  This should usually be set to the
+	// application name, or 'SYSTEM' if the request is on behalf of the
+	// system itself.
+	Service          *string `protobuf:"bytes,2,opt,name=Service" json:"Service,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
 
-func (m *PingResponse) Reset()                    { *m = PingResponse{} }
-func (m *PingResponse) String() string            { return proto.CompactTextString(m) }
-func (*PingResponse) ProtoMessage()               {}
-func (*PingResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
+func (m *ClientInfo) Reset()                    { *m = ClientInfo{} }
+func (m *ClientInfo) String() string            { return proto.CompactTextString(m) }
+func (*ClientInfo) ProtoMessage()               {}
+func (*ClientInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
 
-func (m *PingResponse) GetHealthy() bool {
-	if m != nil && m.Healthy != nil {
-		return *m.Healthy
+func (m *ClientInfo) GetID() string {
+	if m != nil && m.ID != nil {
+		return *m.ID
 	}
-	return false
+	return ""
 }
 
-func (m *PingResponse) GetMsg() string {
-	if m != nil && m.Msg != nil {
-		return *m.Msg
+func (m *ClientInfo) GetService() string {
+	if m != nil && m.Service != nil {
+		return *m.Service
 	}
 	return ""
 }
 
 func init() {
-	proto.RegisterType((*ClientInfo)(nil), "ClientInfo")
 	proto.RegisterType((*NetAuthRequest)(nil), "NetAuthRequest")
 	proto.RegisterType((*ModEntityRequest)(nil), "ModEntityRequest")
 	proto.RegisterType((*ModEntityKeyRequest)(nil), "ModEntityKeyRequest")
 	proto.RegisterType((*ModEntityMembershipRequest)(nil), "ModEntityMembershipRequest")
-	proto.RegisterType((*Entity)(nil), "Entity")
-	proto.RegisterType((*SimpleResult)(nil), "SimpleResult")
-	proto.RegisterType((*TokenResult)(nil), "TokenResult")
-	proto.RegisterType((*KeyList)(nil), "KeyList")
-	proto.RegisterType((*Group)(nil), "Group")
+	proto.RegisterType((*ModGroupNestingRequest)(nil), "ModGroupNestingRequest")
+	proto.RegisterType((*ModCapabilityRequest)(nil), "ModCapabilityRequest")
 	proto.RegisterType((*ModGroupRequest)(nil), "ModGroupRequest")
 	proto.RegisterType((*GroupMemberRequest)(nil), "GroupMemberRequest")
 	proto.RegisterType((*GroupListRequest)(nil), "GroupListRequest")
+	proto.RegisterType((*SimpleResult)(nil), "SimpleResult")
+	proto.RegisterType((*TokenResult)(nil), "TokenResult")
+	proto.RegisterType((*KeyList)(nil), "KeyList")
 	proto.RegisterType((*GroupList)(nil), "GroupList")
 	proto.RegisterType((*GroupInfoResult)(nil), "GroupInfoResult")
-	proto.RegisterType((*EntityMeta)(nil), "EntityMeta")
 	proto.RegisterType((*EntityList)(nil), "EntityList")
-	proto.RegisterType((*ModGroupNestingRequest)(nil), "ModGroupNestingRequest")
-	proto.RegisterType((*ModCapabilityRequest)(nil), "ModCapabilityRequest")
 	proto.RegisterType((*PingRequest)(nil), "PingRequest")
 	proto.RegisterType((*PingResponse)(nil), "PingResponse")
+	proto.RegisterType((*Entity)(nil), "Entity")
+	proto.RegisterType((*EntityMeta)(nil), "EntityMeta")
+	proto.RegisterType((*Group)(nil), "Group")
+	proto.RegisterType((*ClientInfo)(nil), "ClientInfo")
 	proto.RegisterEnum("Capability", Capability_name, Capability_value)
 	proto.RegisterEnum("ExpansionMode", ExpansionMode_name, ExpansionMode_value)
 }
@@ -1848,92 +1874,92 @@ var _NetAuth_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("NetAuth.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 1387 bytes of a gzipped FileDescriptorProto
+	// 1378 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x57, 0xcb, 0x6e, 0xdb, 0x46,
-	0x17, 0x36, 0x65, 0xc9, 0x92, 0x8e, 0x2e, 0xa6, 0x27, 0xb6, 0x43, 0x28, 0x37, 0xff, 0x04, 0x12,
-	0x18, 0x09, 0x7e, 0x3a, 0x51, 0x82, 0x2c, 0x82, 0xa2, 0xa8, 0x2c, 0x31, 0x8a, 0x60, 0x4b, 0x32,
-	0x28, 0x25, 0xa8, 0xbb, 0x31, 0x18, 0x69, 0x2c, 0x11, 0xa5, 0x48, 0x56, 0xa4, 0x92, 0xf2, 0x05,
-	0xfa, 0x0e, 0xed, 0x1b, 0x74, 0xd5, 0x97, 0xe8, 0xb6, 0x9b, 0x02, 0x7d, 0x83, 0x3e, 0x45, 0xdb,
-	0x45, 0x31, 0x17, 0x5e, 0x44, 0x4a, 0xb5, 0x92, 0x1d, 0xcf, 0x37, 0x73, 0x2e, 0xf3, 0xcd, 0x39,
-	0x73, 0x0e, 0xa1, 0xd2, 0xc3, 0x5e, 0x63, 0xe1, 0x4d, 0x15, 0x67, 0x6e, 0x7b, 0xb6, 0xfc, 0x12,
-	0xa0, 0x69, 0x1a, 0xd8, 0xf2, 0x3a, 0xd6, 0xb5, 0x8d, 0xaa, 0x90, 0xe9, 0xb4, 0x24, 0xe1, 0x48,
-	0x38, 0x2e, 0x6a, 0x99, 0x4e, 0x0b, 0x49, 0x90, 0x1f, 0xe0, 0xf9, 0x07, 0x63, 0x84, 0xa5, 0x0c,
-	0x05, 0x03, 0x51, 0x76, 0xa0, 0xca, 0x0d, 0x69, 0xf8, 0xbb, 0x05, 0x76, 0x3d, 0xf4, 0x00, 0x76,
-	0x54, 0xcb, 0x33, 0x3c, 0x5f, 0x12, 0x8e, 0x32, 0xc7, 0xa5, 0x7a, 0x5e, 0x61, 0xa2, 0xc6, 0x61,
-	0x74, 0x17, 0x8a, 0x64, 0xff, 0xd0, 0xfe, 0x16, 0x5b, 0xdc, 0x5c, 0x04, 0xa0, 0x07, 0x90, 0x25,
-	0x21, 0x48, 0xdb, 0x47, 0xc2, 0x71, 0xa9, 0x5e, 0x52, 0xa2, 0xa8, 0x34, 0xba, 0x20, 0xff, 0x28,
-	0x80, 0xd8, 0xb5, 0xc7, 0xdc, 0xe8, 0xa6, 0x4e, 0x1f, 0x42, 0x31, 0x54, 0xa2, 0x4e, 0x63, 0x7b,
-	0xa2, 0x95, 0x1b, 0xbd, 0x2f, 0x07, 0x9f, 0x3d, 0xca, 0x2c, 0x05, 0x2f, 0xff, 0x22, 0xc0, 0xad,
-	0xd0, 0xd8, 0x19, 0xf6, 0x3f, 0x97, 0x93, 0xcc, 0xa7, 0x71, 0x82, 0x10, 0x64, 0xbb, 0xf6, 0x18,
-	0x4b, 0x59, 0xca, 0x26, 0xfd, 0x26, 0xd8, 0xd0, 0x77, 0xb0, 0x94, 0x63, 0x18, 0xf9, 0x46, 0x22,
-	0x6c, 0x9f, 0x61, 0x5f, 0xda, 0xa1, 0x10, 0xf9, 0x94, 0x7f, 0x12, 0xa0, 0x16, 0x46, 0xdc, 0xc5,
-	0xb3, 0xf7, 0x78, 0xee, 0x4e, 0x0d, 0x27, 0x16, 0x38, 0x5e, 0x1d, 0x38, 0x0e, 0x02, 0xcf, 0xb5,
-	0xe7, 0xf6, 0xc2, 0x91, 0xb6, 0xe9, 0xfa, 0x8e, 0x42, 0x25, 0x8d, 0x81, 0x61, 0xe0, 0xd9, 0x8d,
-	0xe8, 0xcc, 0x25, 0xe9, 0x34, 0x02, 0xda, 0x52, 0x09, 0x79, 0x08, 0x3b, 0xbd, 0x05, 0x09, 0x96,
-	0xde, 0x65, 0x4e, 0xe3, 0x12, 0xc1, 0x5d, 0x3c, 0x9a, 0x63, 0x8f, 0x72, 0x55, 0xd4, 0xb8, 0x44,
-	0x02, 0x99, 0x61, 0x4f, 0x0f, 0x03, 0x09, 0xce, 0xeb, 0xe9, 0x1a, 0x5d, 0x90, 0x1b, 0x50, 0x1e,
-	0x18, 0x33, 0xc7, 0xc4, 0x1a, 0x76, 0x17, 0x26, 0x51, 0xc8, 0xbb, 0x8b, 0xd1, 0x08, 0xbb, 0x2e,
-	0x3d, 0x79, 0xe1, 0x55, 0xee, 0x5a, 0x37, 0x5d, 0xac, 0x05, 0x28, 0xa1, 0x72, 0xe6, 0x4e, 0x78,
-	0xfe, 0x92, 0x4f, 0xf9, 0x1d, 0x94, 0x68, 0xd8, 0x9f, 0x60, 0xa1, 0x1b, 0x59, 0xe8, 0xba, 0x13,
-	0xb4, 0x0f, 0x39, 0xc6, 0x04, 0x0b, 0x9e, 0x09, 0xf2, 0x3d, 0xc8, 0x9f, 0x61, 0xff, 0xdc, 0x70,
-	0x3d, 0x72, 0xa7, 0x67, 0xd8, 0x27, 0x06, 0xb7, 0xc9, 0x9d, 0x92, 0x6f, 0xf9, 0x57, 0x81, 0x5f,
-	0x01, 0x59, 0xed, 0xe9, 0x33, 0xcc, 0x69, 0xa2, 0xdf, 0xe8, 0x08, 0x4a, 0x2d, 0xc3, 0x75, 0x4c,
-	0xdd, 0xa7, 0x4b, 0xcc, 0x59, 0x1c, 0x8a, 0x51, 0xb9, 0xbd, 0x44, 0xe5, 0x5d, 0x28, 0x76, 0x75,
-	0x4b, 0x9f, 0xe0, 0xf1, 0xa9, 0xcf, 0x93, 0x28, 0x02, 0xd0, 0x09, 0x94, 0x9b, 0xba, 0xa3, 0xbf,
-	0x37, 0x4c, 0xc3, 0x33, 0xb0, 0x2b, 0xd5, 0x8f, 0xb6, 0x8f, 0xab, 0xe4, 0x86, 0x03, 0xd0, 0xd7,
-	0x96, 0x36, 0xa0, 0xfb, 0x00, 0xea, 0xf7, 0x8e, 0x6e, 0xb9, 0x86, 0x6d, 0xb9, 0xd2, 0x73, 0x7a,
-	0x80, 0x18, 0x22, 0x5b, 0xb0, 0xdb, 0xb5, 0xc7, 0x2c, 0x7b, 0x78, 0xf2, 0x2d, 0x25, 0x87, 0x90,
-	0x2c, 0x8a, 0x30, 0xf3, 0x32, 0xff, 0x95, 0x79, 0x6b, 0x9f, 0x91, 0x01, 0x20, 0xba, 0x93, 0xe5,
-	0x7c, 0xe4, 0x92, 0x1b, 0x15, 0xa8, 0xde, 0x1a, 0xa3, 0x99, 0x75, 0x46, 0x7f, 0x10, 0x40, 0xa4,
-	0x5b, 0xc9, 0x6d, 0x45, 0x35, 0xc4, 0xb4, 0x84, 0x75, 0x45, 0x10, 0xbd, 0x0e, 0x89, 0x87, 0x29,
-	0xc8, 0xfe, 0xa7, 0x20, 0x76, 0xac, 0x91, 0xb9, 0x18, 0xe3, 0x8e, 0x35, 0x36, 0xe6, 0x78, 0xe4,
-	0xb9, 0xf4, 0x60, 0x85, 0x57, 0x59, 0x6f, 0xbe, 0xc0, 0x5a, 0x6a, 0x55, 0x7e, 0x02, 0xc5, 0x30,
-	0x0e, 0x74, 0x1f, 0x76, 0xa8, 0xc0, 0xf2, 0x26, 0x3a, 0x15, 0x47, 0xe5, 0x0e, 0xec, 0xd2, 0x2f,
-	0x1a, 0x12, 0x4b, 0xde, 0x18, 0x0f, 0x2b, 0xc8, 0x95, 0x20, 0xcf, 0x33, 0x41, 0xca, 0xd0, 0x8b,
-	0x0c, 0x44, 0xf9, 0xf7, 0x0c, 0x40, 0x54, 0x5b, 0xa8, 0x06, 0x59, 0x67, 0x62, 0x8c, 0x13, 0x6c,
-	0x52, 0x8c, 0x24, 0x7b, 0x5b, 0x6d, 0xf6, 0x07, 0x3c, 0x27, 0x99, 0x40, 0xee, 0xfc, 0x1c, 0x4f,
-	0x74, 0x93, 0x66, 0x2b, 0x2b, 0x83, 0x08, 0x48, 0x66, 0x73, 0x36, 0x9d, 0xcd, 0x08, 0xb2, 0x6f,
-	0xec, 0x59, 0xf8, 0xea, 0x91, 0x6f, 0xe2, 0x69, 0x30, 0xc5, 0xa6, 0xc9, 0xdf, 0x3d, 0x26, 0xa0,
-	0x47, 0x50, 0x6d, 0xcf, 0x75, 0x67, 0x6a, 0x8c, 0x74, 0x93, 0x2d, 0xe7, 0xe9, 0x72, 0x02, 0x25,
-	0x3e, 0x4f, 0xf5, 0xf1, 0x04, 0xf3, 0x22, 0x29, 0x30, 0x9f, 0x31, 0x08, 0xdd, 0x0e, 0xf9, 0xfd,
-	0x8b, 0x15, 0x26, 0x17, 0xd1, 0xd3, 0x44, 0x91, 0xfc, 0x2d, 0xdc, 0x54, 0x25, 0xb7, 0x78, 0x81,
-	0xff, 0x13, 0xaf, 0xf0, 0x93, 0x80, 0x53, 0x7a, 0x9b, 0xff, 0x83, 0x3c, 0x7f, 0xa7, 0xf9, 0x75,
-	0x86, 0xe9, 0x12, 0xe0, 0xf2, 0x6f, 0x02, 0x1c, 0x06, 0xc5, 0xd4, 0xc3, 0xae, 0x67, 0x58, 0x93,
-	0xcd, 0x6a, 0xea, 0x18, 0x4a, 0x17, 0xfa, 0x1c, 0x5b, 0xde, 0xaa, 0xca, 0x8a, 0x2f, 0xa1, 0x47,
-	0x00, 0xcd, 0xa9, 0x61, 0x8e, 0x57, 0x3d, 0xfe, 0xb1, 0x15, 0x24, 0xc7, 0x3a, 0x53, 0xb5, 0x5e,
-	0x55, 0xc2, 0x8a, 0x27, 0x28, 0xef, 0x54, 0x41, 0x81, 0xe4, 0xd6, 0x95, 0xd5, 0x1f, 0x02, 0xec,
-	0x77, 0xed, 0x71, 0x8c, 0xb5, 0x8d, 0x4e, 0x73, 0x63, 0x5d, 0xc5, 0x9a, 0xd7, 0x8a, 0x6a, 0x8f,
-	0x9a, 0x6a, 0x26, 0x6c, 0xaa, 0x4f, 0x00, 0xa2, 0x28, 0x68, 0xc3, 0x4a, 0x5c, 0x67, 0x6c, 0x39,
-	0x3c, 0xd7, 0xce, 0xba, 0x73, 0x29, 0x50, 0xba, 0x88, 0xdd, 0xcd, 0x4d, 0x0f, 0x85, 0xfc, 0x0a,
-	0xca, 0x6c, 0xbf, 0xeb, 0xd8, 0x96, 0x8b, 0x49, 0x1d, 0xbe, 0xc1, 0xba, 0xe9, 0x4d, 0x7d, 0xaa,
-	0x53, 0xd0, 0x02, 0x31, 0xdd, 0x5b, 0x1e, 0xff, 0x29, 0xc4, 0x43, 0x47, 0xbb, 0x50, 0x6a, 0x9f,
-	0xf7, 0x4f, 0x1b, 0xe7, 0x57, 0x5a, 0xbf, 0x3f, 0x14, 0xb7, 0xd0, 0x1e, 0x54, 0x9a, 0x9a, 0xda,
-	0x18, 0xaa, 0x57, 0x6a, 0x6f, 0xd8, 0x19, 0x5e, 0x8a, 0x80, 0x10, 0x54, 0x5b, 0xea, 0x60, 0xd8,
-	0xd7, 0x2e, 0x03, 0xac, 0x84, 0x0e, 0x01, 0x75, 0xfb, 0xad, 0xce, 0xeb, 0x00, 0xba, 0xea, 0xaa,
-	0xc3, 0x86, 0x58, 0x4e, 0xe3, 0x67, 0xea, 0xe5, 0x40, 0xac, 0x20, 0x09, 0xf6, 0x9b, 0x6f, 0x1a,
-	0xbd, 0x76, 0x60, 0xf6, 0x6a, 0xa0, 0x36, 0x35, 0x75, 0x28, 0x56, 0x91, 0x08, 0x65, 0xee, 0xb0,
-	0xad, 0xf5, 0xdf, 0x5e, 0x88, 0xfb, 0x24, 0x04, 0xe2, 0x4f, 0xeb, 0x5f, 0x72, 0xe8, 0x00, 0x1d,
-	0xc0, 0x1e, 0x37, 0x4b, 0x11, 0xe6, 0xed, 0x90, 0x58, 0x4d, 0xc0, 0xdd, 0x53, 0x55, 0x1b, 0x88,
-	0xb7, 0x1f, 0x3f, 0x87, 0xca, 0x52, 0x8a, 0xa1, 0x12, 0xe4, 0x3b, 0xbd, 0xe6, 0xf9, 0xdb, 0x96,
-	0x2a, 0x0a, 0x44, 0x50, 0xbf, 0x66, 0x42, 0x06, 0x15, 0x20, 0xdb, 0xd2, 0xfa, 0x17, 0xe2, 0xa8,
-	0xfe, 0x73, 0x01, 0xf2, 0x7c, 0x8a, 0x45, 0x0f, 0x21, 0x4b, 0x38, 0x46, 0x65, 0x25, 0x76, 0x35,
-	0xb5, 0x8a, 0x12, 0x27, 0x5e, 0xde, 0x42, 0x0a, 0x00, 0xd9, 0xce, 0x13, 0x69, 0x57, 0x59, 0x1e,
-	0x82, 0x6b, 0x15, 0x25, 0x3e, 0x4d, 0xc8, 0x5b, 0xe8, 0x09, 0x14, 0xda, 0xd8, 0x63, 0x79, 0x99,
-	0xda, 0x5d, 0x56, 0x62, 0x83, 0x83, 0xbc, 0x85, 0x9e, 0x41, 0xe5, 0x9d, 0x6e, 0x1a, 0x63, 0xdd,
-	0xc3, 0x6b, 0x34, 0x52, 0xf6, 0xeb, 0x50, 0x6e, 0x4e, 0x75, 0x6b, 0x82, 0x07, 0x6c, 0xe0, 0xd9,
-	0x53, 0x92, 0x33, 0x72, 0x5a, 0xe7, 0x0b, 0x40, 0xec, 0xdd, 0x5e, 0x7a, 0x82, 0x0e, 0x94, 0x55,
-	0xa5, 0x96, 0xd6, 0x3e, 0x81, 0x62, 0x0f, 0x7f, 0xe4, 0x04, 0x6c, 0xe2, 0xae, 0x0e, 0x65, 0x0d,
-	0xcf, 0xec, 0x0f, 0xf8, 0x13, 0x74, 0x8e, 0x83, 0xa7, 0x8f, 0x36, 0xca, 0x14, 0x0d, 0x41, 0x45,
-	0xcb, 0x5b, 0xe8, 0x25, 0xfd, 0x2b, 0x30, 0xae, 0xfd, 0x58, 0xfb, 0xd9, 0xc4, 0xc3, 0x8b, 0x65,
-	0x3d, 0xf2, 0xe0, 0xa2, 0x7d, 0x65, 0xc5, 0x10, 0x5f, 0x2b, 0x28, 0x7c, 0x0c, 0x93, 0xb7, 0xd0,
-	0xff, 0xa1, 0xd0, 0xc3, 0x1f, 0xd9, 0x3b, 0x21, 0x2a, 0x89, 0xc1, 0x25, 0xed, 0xe4, 0x29, 0x94,
-	0x5a, 0xd8, 0xc4, 0x1e, 0xde, 0x58, 0xe3, 0x05, 0x1d, 0x87, 0x8c, 0x6b, 0x9f, 0x0f, 0x29, 0x9e,
-	0xbe, 0x89, 0xd6, 0x33, 0xde, 0xf6, 0x29, 0x5b, 0xe9, 0xfd, 0xa2, 0x92, 0xe8, 0xf3, 0xf4, 0x24,
-	0x40, 0xce, 0xc4, 0x3b, 0xd6, 0x9e, 0x92, 0x1c, 0x5f, 0x6a, 0x10, 0x41, 0x8c, 0xe6, 0x70, 0x3b,
-	0x6f, 0x37, 0xe8, 0x96, 0x92, 0x9e, 0xa4, 0x6a, 0xc1, 0x8c, 0xcd, 0xf5, 0xbe, 0x02, 0xb1, 0x31,
-	0xe6, 0x9c, 0x0e, 0x6d, 0x46, 0xc3, 0x1d, 0x65, 0xfd, 0x9f, 0x47, 0xfa, 0x6c, 0x2a, 0x1c, 0xc4,
-	0xd3, 0xe7, 0xf5, 0xdc, 0x9e, 0x7d, 0x8e, 0x99, 0x2f, 0x01, 0xc5, 0x88, 0xe5, 0xdd, 0x11, 0xdd,
-	0x56, 0x56, 0xf7, 0xcb, 0x94, 0xfe, 0xe9, 0xbd, 0x6f, 0xee, 0x4c, 0x0c, 0x6f, 0xba, 0x78, 0xaf,
-	0x8c, 0xec, 0xd9, 0x09, 0xcf, 0xc7, 0x93, 0x0b, 0xf2, 0x13, 0x3d, 0xb2, 0xcd, 0x7f, 0x03, 0x00,
-	0x00, 0xff, 0xff, 0x50, 0x23, 0xbe, 0xe6, 0x57, 0x0f, 0x00, 0x00,
+	0x14, 0x35, 0x69, 0x3d, 0xaf, 0x1e, 0xa6, 0x27, 0xb6, 0x43, 0x28, 0x2f, 0x97, 0x40, 0x02, 0x23,
+	0x41, 0xe9, 0x44, 0x09, 0xb2, 0x08, 0x8a, 0xa2, 0xb2, 0xc4, 0x28, 0x82, 0x2d, 0xc9, 0xa0, 0x94,
+	0xa0, 0xee, 0xc6, 0x60, 0xa4, 0xb1, 0x44, 0x94, 0x22, 0x55, 0x91, 0x4a, 0xaa, 0x1f, 0xe8, 0x3f,
+	0xb4, 0x7f, 0xd0, 0x55, 0x7f, 0xa2, 0xdb, 0x6e, 0x0a, 0xf4, 0x0f, 0xfa, 0x15, 0x6d, 0x17, 0xc5,
+	0x3c, 0xf8, 0x10, 0x29, 0xc5, 0x72, 0x76, 0x73, 0xcf, 0xcc, 0x7d, 0xcc, 0x99, 0xc3, 0x3b, 0x43,
+	0x28, 0x75, 0xb0, 0x57, 0x9b, 0x7b, 0x63, 0x75, 0x3a, 0x73, 0x3c, 0x47, 0x99, 0x42, 0x99, 0x03,
+	0x3a, 0xfe, 0x61, 0x8e, 0x5d, 0x0f, 0x3d, 0x80, 0x8c, 0x66, 0x7b, 0xa6, 0xb7, 0x90, 0x85, 0x43,
+	0xf1, 0xa8, 0x50, 0xcd, 0xaa, 0xcc, 0xd4, 0x39, 0x8c, 0xee, 0x42, 0x9e, 0xac, 0xef, 0x3b, 0xdf,
+	0x63, 0x5b, 0x16, 0x0f, 0x85, 0xa3, 0xbc, 0x1e, 0x02, 0xe8, 0x01, 0xa4, 0x5a, 0xf6, 0x95, 0x23,
+	0x6f, 0x1f, 0x0a, 0x47, 0x85, 0x6a, 0x41, 0xad, 0x5b, 0x26, 0xb6, 0x3d, 0x02, 0xe9, 0x74, 0x42,
+	0xf9, 0x59, 0x00, 0xa9, 0xed, 0x0c, 0x79, 0xd0, 0x4d, 0x93, 0x3e, 0x84, 0x7c, 0xe0, 0x44, 0x93,
+	0x46, 0xd6, 0x84, 0x33, 0xd7, 0x66, 0x5f, 0x2e, 0x3e, 0x75, 0x28, 0x2e, 0x15, 0xaf, 0xfc, 0x26,
+	0xc0, 0xad, 0x20, 0xd8, 0x29, 0x5e, 0x7c, 0x2e, 0x27, 0xe2, 0xcd, 0x38, 0x41, 0x08, 0x52, 0x6d,
+	0x67, 0x88, 0xe5, 0x14, 0x65, 0x93, 0x8e, 0x09, 0xd6, 0x5f, 0x4c, 0xb1, 0x9c, 0x66, 0x18, 0x19,
+	0x23, 0x09, 0xb6, 0x4f, 0xf1, 0x42, 0xce, 0x50, 0x88, 0x0c, 0x95, 0x5f, 0x04, 0xa8, 0x04, 0x15,
+	0xb7, 0xf1, 0xe4, 0x3d, 0x9e, 0xb9, 0x63, 0x73, 0x1a, 0x29, 0x1c, 0xaf, 0x2e, 0x1c, 0xfb, 0x85,
+	0xa7, 0x9b, 0x33, 0x67, 0x3e, 0x95, 0xb7, 0xe9, 0x7c, 0x46, 0xa5, 0x96, 0xce, 0xc0, 0xa0, 0xf0,
+	0xd4, 0x46, 0x74, 0xa6, 0xe3, 0x74, 0xfe, 0x21, 0xc0, 0x41, 0xdb, 0x19, 0xd2, 0x58, 0x1d, 0xec,
+	0x7a, 0xa6, 0x3d, 0xf2, 0x0b, 0x5b, 0x72, 0x14, 0xe2, 0x84, 0x1d, 0x41, 0xe1, 0xdc, 0x98, 0x61,
+	0xdb, 0x63, 0xb5, 0x89, 0x4b, 0xb5, 0x45, 0xa7, 0xd0, 0x23, 0x80, 0xfa, 0xd8, 0xb4, 0x86, 0xab,
+	0x36, 0x11, 0x99, 0x41, 0x4a, 0x84, 0xe1, 0x72, 0xb5, 0xac, 0x6a, 0x3f, 0x4e, 0x0d, 0xdb, 0x35,
+	0x1d, 0x9b, 0xa0, 0x9c, 0x71, 0x7f, 0xb7, 0xe9, 0x75, 0xd2, 0xfd, 0x4b, 0x80, 0xbd, 0xb6, 0x33,
+	0xac, 0x1b, 0x53, 0xe3, 0xbd, 0x69, 0x45, 0xe4, 0xfb, 0xe9, 0xdd, 0x84, 0xea, 0x89, 0x09, 0x37,
+	0x54, 0x4f, 0x70, 0x08, 0x42, 0xf2, 0x10, 0x42, 0x71, 0x88, 0x81, 0x38, 0x9e, 0x00, 0x84, 0x55,
+	0x50, 0xe2, 0xcb, 0xa4, 0xe0, 0xb0, 0xb0, 0xc8, 0x74, 0xb0, 0xaf, 0xcc, 0xba, 0x7d, 0xd9, 0xb0,
+	0xe3, 0x1f, 0xd3, 0x66, 0x3b, 0x0a, 0x0a, 0x16, 0x3f, 0xa5, 0x9a, 0xb5, 0x2d, 0xa0, 0x07, 0x88,
+	0xae, 0x64, 0x7a, 0x0d, 0x53, 0xf2, 0xa0, 0xc2, 0x2a, 0x16, 0xfc, 0xa0, 0xe2, 0xba, 0xa0, 0x3f,
+	0x09, 0x20, 0xd1, 0xa5, 0x67, 0xa6, 0xeb, 0x85, 0xfa, 0x67, 0x5e, 0xc2, 0x3a, 0x01, 0x5f, 0x7b,
+	0x36, 0x4f, 0x41, 0x6a, 0xd9, 0x03, 0x6b, 0x3e, 0xc4, 0x2d, 0x7b, 0x68, 0xce, 0xf0, 0xc0, 0x73,
+	0xe9, 0xc6, 0x72, 0xaf, 0x52, 0xde, 0x6c, 0x8e, 0xf5, 0xc4, 0xac, 0x52, 0x83, 0x62, 0xcf, 0x9c,
+	0x4c, 0x2d, 0xac, 0x63, 0x77, 0x6e, 0x91, 0x1a, 0xb2, 0xee, 0x7c, 0x30, 0xc0, 0xae, 0x4b, 0x89,
+	0xcc, 0xbd, 0x4a, 0x5f, 0x19, 0x96, 0x8b, 0x75, 0x1f, 0x25, 0x5f, 0xf5, 0xc4, 0x1d, 0xf1, 0x56,
+	0x4a, 0x86, 0xca, 0x3b, 0x28, 0x50, 0xa2, 0x6f, 0x10, 0xa1, 0x1d, 0x46, 0x68, 0xbb, 0x23, 0xb4,
+	0x07, 0x69, 0x76, 0x76, 0xdb, 0x14, 0x63, 0x86, 0x72, 0x0f, 0xb2, 0xa7, 0x78, 0x41, 0x08, 0x22,
+	0xaa, 0x3a, 0xc5, 0x0b, 0x12, 0x70, 0x9b, 0xa8, 0x8a, 0x8c, 0x95, 0x27, 0x90, 0x0f, 0x18, 0x44,
+	0xf7, 0x21, 0x43, 0x0d, 0xb6, 0x24, 0x3c, 0x0f, 0x8e, 0x2a, 0x2d, 0xd8, 0xa1, 0x23, 0x4a, 0x26,
+	0xab, 0x33, 0x72, 0x82, 0x2b, 0x64, 0x21, 0x43, 0xb6, 0x6d, 0xd8, 0xc6, 0x08, 0x0f, 0x65, 0x91,
+	0x26, 0xf5, 0x4d, 0xe5, 0x18, 0x80, 0xb1, 0x4d, 0x13, 0x7f, 0x01, 0x59, 0xde, 0xc8, 0x78, 0xe6,
+	0xe0, 0x4c, 0x7c, 0x5c, 0x51, 0xa1, 0x70, 0x1e, 0x69, 0x26, 0xd7, 0x9d, 0xb2, 0xf2, 0x0a, 0x8a,
+	0x6c, 0xbd, 0x3b, 0x75, 0x6c, 0x17, 0x93, 0x52, 0xde, 0x60, 0xc3, 0xf2, 0xc6, 0x0b, 0xea, 0x93,
+	0xd3, 0x7d, 0x33, 0xc9, 0xa4, 0x62, 0xfa, 0x0a, 0x41, 0x65, 0x10, 0x5b, 0x0d, 0xea, 0x90, 0xd7,
+	0xc5, 0x56, 0x03, 0x1d, 0x40, 0xa6, 0x33, 0x27, 0x05, 0xd1, 0xe5, 0x69, 0x9d, 0x5b, 0x04, 0x77,
+	0xf1, 0x60, 0x86, 0x3d, 0x4e, 0x3e, 0xb7, 0x48, 0x99, 0x13, 0xec, 0x19, 0x41, 0x37, 0xf5, 0x9b,
+	0xb6, 0x67, 0xe8, 0x74, 0x42, 0xf9, 0x53, 0xf4, 0x89, 0x20, 0x20, 0xaa, 0x40, 0x6a, 0x3a, 0x32,
+	0x87, 0xb1, 0xef, 0x81, 0x62, 0xe4, 0x7c, 0x9b, 0x5a, 0xbd, 0xdb, 0xe3, 0x95, 0x32, 0x83, 0x7c,
+	0xb5, 0x67, 0x78, 0x64, 0x58, 0x1d, 0x63, 0x82, 0x79, 0xf2, 0x10, 0x40, 0x87, 0x50, 0x68, 0x98,
+	0xee, 0xd4, 0x32, 0x16, 0x74, 0x9e, 0x5d, 0x36, 0x51, 0x88, 0x88, 0xe2, 0x8d, 0x33, 0x09, 0xee,
+	0x1c, 0x32, 0x26, 0x99, 0x7a, 0x63, 0x6c, 0x59, 0xfc, 0xd6, 0x61, 0x06, 0x7a, 0x04, 0xe5, 0xe6,
+	0xcc, 0x98, 0x8e, 0xcd, 0x81, 0x61, 0xb1, 0xe9, 0x2c, 0x9d, 0x8e, 0xa1, 0x24, 0xe7, 0x89, 0x31,
+	0x1c, 0x61, 0x4e, 0x54, 0x8e, 0xe5, 0x8c, 0x40, 0xe8, 0x76, 0xa0, 0xb3, 0x7f, 0x98, 0x16, 0xb9,
+	0x89, 0x9e, 0x42, 0x31, 0x68, 0x62, 0x26, 0x76, 0xe5, 0x7f, 0xc9, 0x74, 0xac, 0xcd, 0x2d, 0xad,
+	0x40, 0xb7, 0xb8, 0xa6, 0xff, 0x8b, 0x8a, 0xfa, 0x77, 0x01, 0xc2, 0x46, 0x4a, 0x37, 0xce, 0x4e,
+	0x30, 0xb5, 0x8a, 0x13, 0x31, 0xc9, 0x49, 0x78, 0xca, 0xdb, 0x4b, 0xa7, 0x7c, 0x17, 0xf2, 0x5c,
+	0xbf, 0x27, 0x0b, 0x4e, 0x58, 0x08, 0xa0, 0xe3, 0x58, 0xf1, 0xd5, 0xeb, 0x6a, 0xbf, 0x0f, 0x10,
+	0xdc, 0x49, 0xae, 0xfc, 0x9c, 0x6e, 0x20, 0x82, 0x28, 0x2f, 0x01, 0x42, 0x59, 0x27, 0xa4, 0x28,
+	0x43, 0xb6, 0x87, 0x67, 0x1f, 0xcc, 0x81, 0xbf, 0x05, 0xdf, 0x7c, 0xfc, 0xb7, 0x10, 0xbd, 0x2a,
+	0xd0, 0x0e, 0x14, 0x9a, 0x67, 0xdd, 0x93, 0xda, 0xd9, 0xa5, 0xde, 0xed, 0xf6, 0xa5, 0x2d, 0xb4,
+	0x0b, 0xa5, 0xba, 0xae, 0xd5, 0xfa, 0xda, 0xa5, 0xd6, 0xe9, 0xb7, 0xfa, 0x17, 0x12, 0x20, 0x04,
+	0xe5, 0x86, 0xd6, 0xeb, 0x77, 0xf5, 0x0b, 0x1f, 0x2b, 0xa0, 0x03, 0x40, 0xed, 0x6e, 0xa3, 0xf5,
+	0xda, 0x87, 0x2e, 0xdb, 0x5a, 0xbf, 0x26, 0x15, 0x93, 0xf8, 0xa9, 0x76, 0xd1, 0x93, 0x4a, 0x48,
+	0x86, 0xbd, 0xfa, 0x9b, 0x5a, 0xa7, 0xe9, 0x87, 0xbd, 0xec, 0x69, 0x75, 0x5d, 0xeb, 0x4b, 0x65,
+	0x24, 0x41, 0x91, 0x27, 0x6c, 0xea, 0xdd, 0xb7, 0xe7, 0xd2, 0x1e, 0x29, 0x81, 0xe4, 0xd3, 0xbb,
+	0x17, 0x1c, 0xda, 0x47, 0xfb, 0xb0, 0xcb, 0xc3, 0x52, 0x84, 0x65, 0x3b, 0x20, 0x51, 0x63, 0x70,
+	0xfb, 0x44, 0xd3, 0x7b, 0xd2, 0xed, 0xc7, 0xcf, 0xa1, 0xb4, 0x74, 0xa5, 0xa3, 0x02, 0x64, 0x5b,
+	0x9d, 0xfa, 0xd9, 0xdb, 0x86, 0x26, 0x09, 0xc4, 0xd0, 0xbe, 0x65, 0x86, 0x88, 0x72, 0x90, 0x6a,
+	0xe8, 0xdd, 0x73, 0x69, 0x50, 0xfd, 0x35, 0x07, 0x59, 0xfe, 0xfa, 0x45, 0x0f, 0x21, 0x45, 0x5a,
+	0x04, 0x2a, 0xaa, 0x91, 0xce, 0x52, 0x29, 0xa9, 0xd1, 0xbe, 0xa1, 0x6c, 0x21, 0x15, 0x80, 0x2c,
+	0xe7, 0x1d, 0x61, 0x47, 0x5d, 0x7e, 0x3c, 0x57, 0x4a, 0x6a, 0xb4, 0xf5, 0x2b, 0x5b, 0xe8, 0x09,
+	0xe4, 0x9a, 0xd8, 0x63, 0xb7, 0x66, 0x62, 0x75, 0x51, 0x8d, 0x74, 0x79, 0x65, 0x0b, 0x3d, 0x83,
+	0xd2, 0x3b, 0xc3, 0x32, 0x87, 0x86, 0x87, 0xd7, 0x78, 0x24, 0xe2, 0x57, 0xa1, 0x58, 0x1f, 0x1b,
+	0xf6, 0x08, 0xf7, 0x58, 0x8f, 0xd9, 0x55, 0xe3, 0x6f, 0xeb, 0xa4, 0xcf, 0x57, 0x80, 0x98, 0x50,
+	0x97, 0x04, 0xb8, 0xaf, 0xae, 0x7a, 0xda, 0x24, 0xbd, 0x8f, 0x21, 0xdf, 0xc1, 0x1f, 0x39, 0x01,
+	0x9b, 0xa4, 0xab, 0x42, 0x51, 0xc7, 0x13, 0xe7, 0x03, 0xbe, 0x81, 0xcf, 0x91, 0xdf, 0x08, 0xa9,
+	0xda, 0x13, 0x34, 0xf8, 0x37, 0x82, 0xb2, 0x85, 0x5e, 0xd2, 0xbf, 0x09, 0xf3, 0x6a, 0x11, 0x69,
+	0x9c, 0x9b, 0x64, 0x78, 0xb1, 0xec, 0x47, 0x5a, 0x05, 0xda, 0x53, 0x57, 0x3c, 0xfe, 0x2b, 0x39,
+	0x95, 0xdf, 0x99, 0xca, 0x16, 0xfa, 0x12, 0x72, 0x1d, 0xfc, 0x91, 0xb5, 0x13, 0x49, 0x8d, 0x3d,
+	0x9a, 0x92, 0x49, 0x9e, 0x42, 0xa1, 0x81, 0x2d, 0xec, 0xe1, 0x8d, 0x3d, 0x5e, 0xd0, 0xa7, 0x98,
+	0x79, 0xb5, 0xe0, 0x0f, 0x24, 0xcf, 0xd8, 0xc4, 0xeb, 0x19, 0xbf, 0xb8, 0x29, 0x5b, 0xc9, 0xf5,
+	0x92, 0x1a, 0xbb, 0xa9, 0xe9, 0x4e, 0x80, 0xec, 0x89, 0xf7, 0xda, 0x5d, 0x35, 0xfe, 0x74, 0xaa,
+	0x40, 0x08, 0x31, 0x9a, 0x83, 0xe5, 0xfc, 0x16, 0x46, 0xb7, 0xd4, 0xe4, 0x2b, 0xae, 0xe2, 0x5f,
+	0x6b, 0xdc, 0xef, 0x1b, 0x90, 0x6a, 0x43, 0xce, 0x69, 0xdf, 0x61, 0x34, 0xdc, 0x51, 0xd7, 0xff,
+	0xb1, 0x24, 0xf7, 0xa6, 0xc1, 0x7e, 0x54, 0x3e, 0xaf, 0x67, 0xce, 0xe4, 0x73, 0xc2, 0x7c, 0x0d,
+	0x28, 0x42, 0x2c, 0xff, 0x1b, 0x41, 0xb7, 0xd5, 0xd5, 0xff, 0x27, 0x09, 0xff, 0x93, 0x7b, 0xdf,
+	0xdd, 0x19, 0x99, 0xde, 0x78, 0xfe, 0x5e, 0x1d, 0x38, 0x93, 0x63, 0xae, 0xc7, 0xe3, 0x73, 0xf2,
+	0x13, 0x3d, 0x70, 0xac, 0xff, 0x03, 0x00, 0x00, 0xff, 0xff, 0xb7, 0x19, 0x14, 0xea, 0x57, 0x0f,
+	0x00, 0x00,
 }

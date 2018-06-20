@@ -92,23 +92,6 @@ service NetAuth {
   rpc ModifyGroupNesting(ModGroupNestingRequest) returns (SimpleResult) {}
 }
 
-// The ClientInfo message contains information about the client
-// originating the request.  This information must not be used for
-// security functions of any kind, as it is directly editable by the
-// client.
-message ClientInfo {
-  // The ID is to be used to define the originating client, this
-  // should in general be set to the client's hostname, or otherwise
-  // some persistent system identifier.
-  optional string ID = 1;
-
-  // The Service is an identifier that defined what is asking the
-  // system for information.  This should usually be set to the
-  // application name, or 'SYSTEM' if the request is on behalf of the
-  // system itself.
-  optional string Service = 2;
-}
-
 // An AuthRequest includes an Entity and some information to identify
 // the system that is making the request.
 message NetAuthRequest {
@@ -122,9 +105,11 @@ message NetAuthRequest {
   optional ClientInfo Info = 3;
 }
 
-// A ModEntityRequest takes an entity to authorize and an entity to
-// act upon.  These may be the same entity for changes being applied
-// by an entity to itself.
+// ModEntityRequests use  an entity  and optionally a  modEntity.  For
+// all  requests except  changing  the secret,  the authentication  is
+// derived  from the  AuthToken.  In  the  case of  the change  secret
+// request the entity may need  to authenticate via secret if changing
+// parameters on itself.
 message ModEntityRequest {
   // The request must always have an entity, the second entity may not
   // be set in which case the first entity will be acted upon.
@@ -141,7 +126,8 @@ message ModEntityRequest {
   required string AuthToken = 4;
 }
 
-// Modify the keys for a given entity
+// Modify the keys for a given entity.  If the caller wishes to just
+// list keys in an unauthenticated fashion, pass an empty token.
 message ModEntityKeyRequest {
   // The request must have an entity and token to authorize the
   // change, from there it may have a mode, type, and key, but these
@@ -156,6 +142,8 @@ message ModEntityKeyRequest {
   optional string Key = 6;
 }
 
+// ModEntityMembershipRequest alters the direct membership of
+// entities.  See ModGroupNestingRequest for indirect memberships.
 message ModEntityMembershipRequest {
   // The entity in question
   required Entity entity = 1;
@@ -171,29 +159,79 @@ message ModEntityMembershipRequest {
   required string AuthToken = 5;
 }
 
-// An entity may be a person or a machine actor that wishes to act as
-// some identity.  To do so they will need to transmit an ID and a
-// secret which will be used to verify that they are who they say they
-// are.
-message Entity {
-  // The entity may be identified by a string.  This is most common
-  // for the initial authentication case where a people-entity has
-  // typed a name in and now wishes to be authenticated.
-  optional string ID = 1;
+// ModGroupNestingRequest handles the addition or removal of group
+// nesting operations.
+message ModGroupNestingRequest {
+  // This action must be authorized
+  required string AuthToken = 1;
 
-  // An entity might also be identified by a unique ID number.  This
-  // case is most common when some program wishes to get information
-  // about an entity.
-  optional int32 Number = 2;
+  // There must be a parent and child group for each request.
+  required Group ParentGroup = 2;
+  required Group ChildGroup = 3;
 
-  // The entity may have a secret which they will use to authenticate
-  // themselves.
-  optional string secret = 3;
+  // Expansions can either include children or exclude them.  The
+  // default is to include.
+  optional ExpansionMode Mode = 4;
 
-  // For requests that update the meta information this must be
-  // attatched to the entity itself.  This also allows the in-memory
-  // format to be defined by this proto.
-  optional EntityMeta meta = 4;
+  // Like other requests this contains info about the caller
+  optional ClientInfo Info = 5;
+}
+
+// ModCapabilityRequest can alter the capabilities assigned to either
+// an entity or group.  If the entity is specified the group will be
+// ignored.
+message ModCapabilityRequest {
+  // This action must be authorized
+  required string AuthToken = 1;
+
+  // Either an entity or a group must be specified, if both are
+  // specified, the group will be ignored.
+  optional Entity Entity = 2;
+  optional Group Group = 3;
+
+  // The mode can be either 'ADD' or 'REMOVE'
+  required string Mode = 4;
+
+  // And of course, the capability must be specified
+  required Capability Capability = 5;
+
+  // Like other requests this contains info about the caller
+  optional ClientInfo Info = 6;
+}
+
+// ModGroupRequest is used for modifying the a group.  This action can
+// only modify some fields on a group, as the name and number are
+// immutable after creation.
+message ModGroupRequest {
+  // The AuthToken for authorization of changes to the database.
+  required string AuthToken = 1;
+
+  // The group that's being modified.
+  required Group Group = 2;
+
+  // Client information for logging
+  optional ClientInfo Info = 3;
+}
+
+// A GroupMemberRequest requests the members of a given group.  This
+// query is quite expensive and is fairly unoptimized, consider
+// carefully if you need to use this in your application.
+message GroupMemberRequest {
+  // The group for which info is being requested.
+  optional Group Group = 1;
+
+  // Client information for logging
+  optional ClientInfo Info = 2;
+}
+
+// A GroupListRequest summons the listing of groups for the provided
+// entity.  Optionally the client may disable indirect lookups, but
+// this is not the default due to this causing unintuitive group
+// results to be returned.
+message GroupListRequest{
+  optional ClientInfo Info = 1;
+  optional Entity Entity = 2;
+  optional bool IncludeIndirects = 3 [default=true];
 }
 
 // A SimpleResult can be returned from most services and explains
@@ -232,81 +270,71 @@ message KeyList {
   repeated string Keys = 1;
 }
 
-// While machine entities may belong to only one group, people
-// entities often belong to many groups at once.  This message
-// structures the reply for the additional groups.
-message Group {
-  // A group name must satisfy the requirements of the UNIX group
-  // naming conventions.  This should be one word, lower case, with no
-  // spaces and cannot begin with a number.
-  optional string Name = 1;
-
-  // Since the name has strict naming requirements, its nice to have a
-  // displayName for the group which has a more friendly display.
-  // Instead of trying to reason out what naacct means, its much nicer
-  // to just know that its "Accounting team - North America"
-  optional string DisplayName = 2;
-
-  // On *nix systems the group should also have a number.  This number
-  // should be the same across all systems since it may be used for
-  // internal matching of users.
-  optional int32 Number = 3;
-
-  // Groups can be managed by other groups.  For a group to be self
-  // managed, one would set the managed by group to be the group
-  // itself.
-  optional string ManagedBy = 5;
-
-  // Groups may have capabilities that are conferred to members of the
-  // group on a membership basis.  This is the preferred way of
-  // granting capabilities to an entity since it means that when an
-  // entity is removed from the group they lose the capabilities that
-  // were granted from it.
-  repeated Capability Capabilities = 50;
-
-  // Groups can also be members of other groups.  This allows a group
-  // to appear to contain a larger membership and build this
-  // membership based on potentially very intricate include/exclude
-  // rules.  The format of this field is "<mode>:<group>" so if you
-  // were including the membership of 'foo', then it would have the
-  // value of "INCLUDE:foo".
-  repeated string Expansions = 51;
-}
-
-message ModGroupRequest {
-  // The AuthToken for authorization of changes to the database.
-  required string AuthToken = 1;
-
-  // The group that's being modified.
-  required Group Group = 2;
-
-  // Client information for logging
-  optional ClientInfo Info = 3;
-}
-
-message GroupMemberRequest {
-  // The group for which info is being requested.
-  optional Group Group = 1;
-
-  // Client information for logging
-  optional ClientInfo Info = 2;
-}
-
-message GroupListRequest{
-  optional ClientInfo Info = 1;
-  optional Entity Entity = 2;
-  optional bool IncludeIndirects = 3 [default=true];
-}
-
+// A GroupList contains a literal list of groups, such as returned by
+// a search function.
 message GroupList {
   repeated Group Groups = 1;
 }
 
+// A GroupInfoResult contains exactly one group, and for convenience a
+// list of groups that this group manages.
 message GroupInfoResult {
   required Group Group = 1;
   repeated string Managed = 2;
 }
 
+// GroupMemberList is returned when a query generates a list of
+// entities.
+message EntityList {
+  repeated Entity Members = 1;
+}
+// The PingRequest is used to ask the server to return its health
+// status to the requestor.
+message PingRequest {
+  // Client information for logging
+  optional ClientInfo Info = 1;
+}
+
+
+// The PingReply is used to tell the client if this server is healthy
+// and ready to serve.
+message PingResponse {
+  // The server will reply healthy=True if it is ready to serve.
+  optional bool Healthy = 1;
+
+  // Optionally the server may have a message if it is not healthy.
+  optional string Msg = 2;
+}
+
+// An entity may be a person or a machine actor that wishes to act as
+// some identity.  To do so they will need to transmit an ID and a
+// secret which will be used to verify that they are who they say they
+// are.
+message Entity {
+  // The entity may be identified by a string.  This is most common
+  // for the initial authentication case where a people-entity has
+  // typed a name in and now wishes to be authenticated.
+  optional string ID = 1;
+
+  // An entity might also be identified by a unique ID number.  This
+  // case is most common when some program wishes to get information
+  // about an entity.
+  optional int32 Number = 2;
+
+  // The entity may have a secret which they will use to authenticate
+  // themselves.
+  optional string secret = 3;
+
+  // For requests that update the meta information this must be
+  // attatched to the entity itself.  This also allows the in-memory
+  // format to be defined by this proto.
+  optional EntityMeta meta = 4;
+}
+
+// The EntityMeta structure contains additional information about the
+// entity in question.  This is the "directory" part of NetAuth's
+// ecosystem and contains information you might want to know about an
+// entity.
 message EntityMeta {
   // The primary group ID for the entity.  On most UNIX systems this
   // will map to a group with the same string representation as the
@@ -373,62 +401,60 @@ message EntityMeta {
   repeated string Keys = 252;
 }
 
-// GroupMemberList is returned when a query generates a list of
-// entities.
-message EntityList {
-  repeated Entity Members = 1;
+// While machine entities may belong to only one group, people
+// entities often belong to many groups at once.  This message
+// structures the reply for the additional groups.
+message Group {
+  // A group name must satisfy the requirements of the UNIX group
+  // naming conventions.  This should be one word, lower case, with no
+  // spaces and cannot begin with a number.
+  optional string Name = 1;
+
+  // Since the name has strict naming requirements, its nice to have a
+  // displayName for the group which has a more friendly display.
+  // Instead of trying to reason out what naacct means, its much nicer
+  // to just know that its "Accounting team - North America"
+  optional string DisplayName = 2;
+
+  // On *nix systems the group should also have a number.  This number
+  // should be the same across all systems since it may be used for
+  // internal matching of users.
+  optional int32 Number = 3;
+
+  // Groups can be managed by other groups.  For a group to be self
+  // managed, one would set the managed by group to be the group
+  // itself.
+  optional string ManagedBy = 5;
+
+  // Groups may have capabilities that are conferred to members of the
+  // group on a membership basis.  This is the preferred way of
+  // granting capabilities to an entity since it means that when an
+  // entity is removed from the group they lose the capabilities that
+  // were granted from it.
+  repeated Capability Capabilities = 50;
+
+  // Groups can also be members of other groups.  This allows a group
+  // to appear to contain a larger membership and build this
+  // membership based on potentially very intricate include/exclude
+  // rules.  The format of this field is "<mode>:<group>" so if you
+  // were including the membership of 'foo', then it would have the
+  // value of "INCLUDE:foo".
+  repeated string Expansions = 51;
 }
 
-// ModGroupNestingRequest handles the addition or removal of group
-// nesting operations.
-message ModGroupNestingRequest {
-  // This action must be authorized
-  required string AuthToken = 1;
+// The ClientInfo message contains information about the client
+// originating the request.  This information must not be used for
+// security functions of any kind, as it is directly editable by the
+// client.
+message ClientInfo {
+  // The ID is to be used to define the originating client, this
+  // should in general be set to the client's hostname, or otherwise
+  // some persistent system identifier.
+  optional string ID = 1;
 
-  // There must be a parent and child group for each request.
-  required Group ParentGroup = 2;
-  required Group ChildGroup = 3;
-
-  // Expansions can either include children or exclude them.  The
-  // default is to include.
-  optional ExpansionMode Mode = 4;
-
-  // Like other requests this contains info about the caller
-  optional ClientInfo Info = 5;
-}
-
-message ModCapabilityRequest {
-  // This action must be authorized
-  required string AuthToken = 1;
-
-  // Either an entity or a group must be specified, if both are
-  // specified, the group will be ignored.
-  optional Entity Entity = 2;
-  optional Group Group = 3;
-
-  // The mode can be either 'ADD' or 'REMOVE'
-  required string Mode = 4;
-
-  // And of course, the capability must be specified
-  required Capability Capability = 5;
-
-  // Like other requests this contains info about the caller
-  optional ClientInfo Info = 6;
-}
-
-// The PingRequest is used to ask the server to return its health
-// status to the requestor.
-message PingRequest {
-  // Client information for logging
-  optional ClientInfo Info = 1;
-}
-
-// The PingReply is used to tell the client if this server is healthy
-// and ready to serve.
-message PingResponse {
-  // The server will reply healthy=True if it is ready to serve.
-  optional bool Healthy = 1;
-
-  // Optionally the server may have a message if it is not healthy.
-  optional string Msg = 2;
+  // The Service is an identifier that defined what is asking the
+  // system for information.  This should usually be set to the
+  // application name, or 'SYSTEM' if the request is on behalf of the
+  // system itself.
+  optional string Service = 2;
 }
