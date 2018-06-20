@@ -252,17 +252,17 @@ message Group {
   // internal matching of users.
   optional int32 Number = 3;
 
+  // Groups can be managed by other groups.  For a group to be self
+  // managed, one would set the managed by group to be the group
+  // itself.
+  optional string ManagedBy = 5;
+
   // Groups may have capabilities that are conferred to members of the
   // group on a membership basis.  This is the preferred way of
   // granting capabilities to an entity since it means that when an
   // entity is removed from the group they lose the capabilities that
   // were granted from it.
-  repeated Capability Capabilities = 4;
-
-  // Groups can be managed by other groups.  For a group to be self
-  // managed, one would set the managed by group to be the group
-  // itself.
-  optional string ManagedBy = 5;
+  repeated Capability Capabilities = 50;
 
   // Groups can also be members of other groups.  This allows a group
   // to appear to contain a larger membership and build this
@@ -270,7 +270,7 @@ message Group {
   // rules.  The format of this field is "<mode>:<group>" so if you
   // were including the membership of 'foo', then it would have the
   // value of "INCLUDE:foo".
-  repeated string Expansions = 6;
+  repeated string Expansions = 51;
 }
 
 message ModGroupRequest {
@@ -360,17 +360,17 @@ message EntityMeta {
   optional string BadgeNumber = 8;
 
   // Entities may be direct members of groups
-  repeated string Groups = 9;
+  repeated string Groups = 250;
 
   // Entities may have capabilities that provide special actions to
   // the holder within NetAuth.
-  repeated Capability Capabilities = 10;
+  repeated Capability Capabilities = 251;
 
   // Entities may also have one or more Keys associated with them.
   // This is deliberately untyped to allow it to be TYPE:KEY rather
   // than needing a protocol update every time a new type of key
   // should be stored.
-  repeated string Keys = 11;
+  repeated string Keys = 252;
 }
 
 // GroupMemberList is returned when a query generates a list of
