@@ -341,7 +341,7 @@ message EntityMeta {
   // Entity, but it is not uncommon for people-entities in a network
   // environment to not have a personal primary group and instead
   // belong to an organization wide primary group.
-  optional Group pgid = 1;
+  optional string PrimaryGroup = 1;
 
   // This is an arbitrary field used to store things like the user's
   // real name.  It is here for consistency, but the name displayed by
