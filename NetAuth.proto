@@ -399,6 +399,11 @@ message EntityMeta {
   // than needing a protocol update every time a new type of key
   // should be stored.
   repeated string Keys = 252;
+
+  // While NetAuth isn't a general purpose directory, it will
+  // undoubtedly be abused in that way.  To make this somewhat more
+  // palatable, a generic K/V field is included.
+  repeated string UntypedMeta = 253;
 }
 
 // While machine entities may belong to only one group, people
@@ -440,6 +445,11 @@ message Group {
   // were including the membership of 'foo', then it would have the
   // value of "INCLUDE:foo".
   repeated string Expansions = 51;
+
+  // While NetAuth isn't a general purpose directory, it will
+  // undoubtedly be abused in that way.  To make this somewhat more
+  // palatable, a generic K/V field is included.
+  repeated string UntypedMeta = 100;
 }
 
 // The ClientInfo message contains information about the client
