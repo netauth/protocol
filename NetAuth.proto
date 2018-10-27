@@ -68,6 +68,7 @@ service NetAuth {
   rpc EntityInfo(NetAuthRequest) returns (Entity) {}
   rpc ModifyEntityMeta(ModEntityRequest) returns (SimpleResult) {}
   rpc ModifyEntityKeys(ModEntityKeyRequest) returns (KeyList) {}
+  rpc ModifyUntypedEntityMeta(ModEntityMetaRequest) returns (UntypedMetaResult) {}
 
 
   //////////////////////
@@ -79,6 +80,7 @@ service NetAuth {
   rpc DeleteGroup(ModGroupRequest) returns (SimpleResult) {}
   rpc ModifyGroupMeta(ModGroupRequest) returns (SimpleResult) {}
   rpc GroupInfo(ModGroupRequest) returns (GroupInfoResult) {}
+  rpc ModifyUntypedGroupMeta(ModGroupMetaRequest) returns (UntypedMetaResult) {}
 
   // List groups and members
   rpc ListGroups(GroupListRequest) returns (GroupList) {}
@@ -234,6 +236,46 @@ message GroupListRequest{
   optional bool IncludeIndirects = 3 [default=true];
 }
 
+// A ModEntityMetaRequest includes the metadata needed to modify the
+// untyped key/value store on an entity.
+message ModEntityMetaRequest {
+  // The request must always have an entity, the second entity may not
+  // be set in which case the first entity will be acted upon.
+  required Entity Entity = 1;
+
+  // Parameters needed to manage untyped metadata
+  required string Mode = 2;
+  required string Key = 3;
+  optional string Value = 4;
+
+  // Client information for logging
+  optional ClientInfo Info = 5;
+
+  // The authentication token is used to authorize changes made to the
+  // state of things in the NetAuth database.
+  required string AuthToken = 6;
+}
+
+// A ModGroupMetaRequest includes the metadata needed to modify the
+// untyped key/value store on an entity.
+message ModGroupMetaRequest {
+  // The request must always have an entity, the second entity may not
+  // be set in which case the first entity will be acted upon.
+  required Group Group = 1;
+
+  // Parameters needed to manage untyped metadata
+  required string Mode = 2;
+  required string Key = 3;
+  optional string Value = 4;
+
+  // Client information for logging
+  optional ClientInfo Info = 5;
+
+  // The authentication token is used to authorize changes made to the
+  // state of things in the NetAuth database.
+  required string AuthToken = 6;
+}
+
 // A SimpleResult can be returned from most services and explains
 // whether or not the service completed successfully or not, and an
 // optional message that may explain in more detail.
@@ -288,6 +330,13 @@ message GroupInfoResult {
 message EntityList {
   repeated Entity Members = 1;
 }
+
+// UntypedMetaResponse contains a repeated string field which is
+// converted to a map on the client side.
+message UntypedMetaResult {
+  repeated string UntypedMeta = 1;
+}
+
 // The PingRequest is used to ask the server to return its health
 // status to the requestor.
 message PingRequest {
