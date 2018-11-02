@@ -16,6 +16,8 @@ enum Capability {
   MODIFY_ENTITY_META = 12;
   MODIFY_ENTITY_KEYS = 13;
   CHANGE_ENTITY_SECRET = 14;
+  LOCK_ENTITY = 15;
+  UNLOCK_ENTITY = 16;
   CREATE_GROUP = 20;
   DESTROY_GROUP = 21;
   MODIFY_GROUP_META = 22;
@@ -45,6 +47,8 @@ service NetAuth {
   rpc AuthEntity(NetAuthRequest) returns (SimpleResult) {}
   rpc GetToken(NetAuthRequest) returns (TokenResult) {}
   rpc ValidateToken(NetAuthRequest) returns (SimpleResult) {}
+  rpc LockEntity(NetAuthRequest) returns (SimpleResult) {}
+  rpc UnlockEntity(NetAuthRequest) returns (SimpleResult) {}
 
   // ChangeSecret is unusual in that it uses the token if vouching for
   // *another* entity's secret being changed, but if the change is for
@@ -435,6 +439,11 @@ message EntityMeta {
   // because the badge "number" might actually be a UUID or something
   // that is not otherwise a pure number.
   optional string BadgeNumber = 8;
+
+  // An entity can be locked such that they cannot authenticate at
+  // all.  This instructs the server to refuse authentication attempts
+  // before considering the secret (if provided).
+  optional bool Locked = 9;
 
   // Entities may be direct members of groups
   repeated string Groups = 250;
