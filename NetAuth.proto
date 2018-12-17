@@ -12,7 +12,7 @@ option go_package = "github.com/NetAuth/Protocol";
 enum Capability {
   GLOBAL_ROOT = 0;
   CREATE_ENTITY = 10;
-  DESTORY_ENTITY = 11;
+  DESTROY_ENTITY = 11;
   MODIFY_ENTITY_META = 12;
   MODIFY_ENTITY_KEYS = 13;
   CHANGE_ENTITY_SECRET = 14;
