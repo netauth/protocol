@@ -73,7 +73,7 @@ service NetAuth {
   rpc ModifyEntityMeta(ModEntityRequest) returns (SimpleResult) {}
   rpc ModifyEntityKeys(ModEntityKeyRequest) returns (KeyList) {}
   rpc ModifyUntypedEntityMeta(ModEntityMetaRequest) returns (UntypedMetaResult) {}
-
+  rpc SearchEntities(SearchRequest) returns (EntityList) {}
 
   //////////////////////
   // Group Management //
@@ -85,6 +85,7 @@ service NetAuth {
   rpc ModifyGroupMeta(ModGroupRequest) returns (SimpleResult) {}
   rpc GroupInfo(ModGroupRequest) returns (GroupInfoResult) {}
   rpc ModifyUntypedGroupMeta(ModGroupMetaRequest) returns (UntypedMetaResult) {}
+  rpc SearchGroups(SearchRequest) returns (GroupList) {}
 
   // List groups and members
   rpc ListGroups(GroupListRequest) returns (GroupList) {}
@@ -278,6 +279,13 @@ message ModGroupMetaRequest {
   // The authentication token is used to authorize changes made to the
   // state of things in the NetAuth database.
   required string AuthToken = 6;
+}
+
+// A SearchRequest contains a search expression, and the standard
+// client info struct.
+message SearchRequest {
+  optional string expression = 1;
+  optional ClientInfo Info = 2;
 }
 
 // A SimpleResult can be returned from most services and explains
