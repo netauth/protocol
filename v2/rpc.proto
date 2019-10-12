@@ -55,26 +55,20 @@ enum RuleAction {
 }
 
 message EntityRequest {
-  optional AuthData Auth = 1;
-  optional Entity Entity = 2;
-  optional Entity Data = 3;
-  optional ClientInfo Info = 4;
+  optional Entity Entity = 1;
+  optional Entity Data = 2;
 }
 
 message GroupRequest {
-  optional AuthData Auth = 1;
-  optional Group Group = 2;
-  optional Group Data = 3;
-  optional ClientInfo Info = 4;
+  optional Group Group = 1;
+  optional Group Data = 2;
 }
 
 message KVRequest {
-  optional AuthData Auth = 1;
-  optional string Target = 2;
-  optional Action Action = 3;
-  optional string Key = 4;
-  optional string Value = 5;
-  optional ClientInfo Info = 6;
+  optional string Target = 1;
+  optional Action Action = 2;
+  optional string Key = 3;
+  optional string Value = 4;
 }
 
 message ListOfEntities {
@@ -93,14 +87,9 @@ message AuthRequest {
   optional Entity Entity = 1;
   optional string Secret = 2;
   optional string Token = 98;
-  optional ClientInfo Info = 99;
 }
 
 message AuthResult {
-  optional string Token = 1;
-}
-
-message AuthData {
   optional string Token = 1;
 }
 
@@ -117,20 +106,16 @@ message ServerStatus {
 }
 
 message CapabilityRequest {
-  optional AuthData Auth = 1;
-  optional Capability Capability = 2;
-  optional bool Direct = 3;
-  optional string Target = 4;
-  optional Action Action = 5;
-  optional ClientInfo Info = 6;
+  optional Capability Capability = 1;
+  optional bool Direct = 2;
+  optional string Target = 3;
+  optional Action Action = 4;
 }
 
 message GroupRulesRequest {
-  optional AuthData Auth = 1;
-  optional Group Group = 2;
-  optional Group Target = 3;
-  optional RuleAction RuleAction = 5;
-  optional ClientInfo Info = 6;
+  optional Group Group = 1;
+  optional Group Target = 2;
+  optional RuleAction RuleAction = 3;
 }
 
 // Some RPC commands return no result, instead the only return
@@ -139,26 +124,8 @@ message GroupRulesRequest {
 // by being explicitly empty.
 message Empty {}
 
-// The ClientInfo message contains information about the client
-// originating the request.  This information must not be used for
-// security functions of any kind, as it is directly editable by the
-// client.
-message ClientInfo {
-  // The ID is to be used to define the originating client, this
-  // should in general be set to the client's hostname, or otherwise
-  // some persistent system identifier.
-  optional string ID = 1;
-
-  // The Service is an identifier that defined what is asking the
-  // system for information.  This should usually be set to the
-  // application name, or 'SYSTEM' if the request is on behalf of the
-  // system itself.
-  optional string Service = 2;
-}
-
 // A SearchRequest contains a search expression, and the standard
 // client info struct.
 message SearchRequest {
   optional string expression = 1;
-  optional ClientInfo Info = 2;
 }
