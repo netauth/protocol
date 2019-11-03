@@ -21,7 +21,7 @@ service NetAuth2 {
   rpc AuthEntity(AuthRequest) returns (Empty) {}
   rpc AuthGetToken(AuthRequest) returns (AuthResult) {}
   rpc AuthValidateToken(AuthRequest) returns (Empty) {}
-  rpc AuthChangeSecret(EntityRequest) returns (Empty) {}
+  rpc AuthChangeSecret(AuthRequest) returns (Empty) {}
 
   rpc GroupCreate(GroupRequest) returns (Empty) {}
   rpc GroupUpdate(GroupRequest) returns (Empty) {}
