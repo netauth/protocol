@@ -3,7 +3,7 @@
 // a user's account.
 
 syntax = "proto2";
-option go_package = "github.com/NetAuth/Protocol";
+option go_package = "github.com/netauth/protocol";
 
 // Capabilities permit the holder to perform special actions within
 // NetAuth.  This allows the holder to do things related to management
