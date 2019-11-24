@@ -2,8 +2,8 @@
 // lessons learned from v1, mainly that naming functions matters, and
 // its very important to maintain conventions throughout an interface.
 syntax = "proto2";
-option go_package = "github.com/NetAuth/Protocol/v2";
-import "NetAuth.proto";
+option go_package = "github.com/netauth/protocol/v2";
+import "netauth.proto";
 package netauth.v2;
 
 service NetAuth2 {
