@@ -32,9 +32,27 @@ enum ExpansionMode {
   DROP = 99;
 }
 
+// KVData holds the data for a single Key/Value dataset.  It is based
+// on holding the key which may be multi-valued, and may be an arbitrary
+// string.
+message KVData {
+  // A key needs to be representable as a string, though it is not //
+  // used for anything internally beyond a byte comparision for equality.
+  required string Key = 1;
 
+  // A key may have one or more values.  The values are completely
+  // opaque to NetAuth, but must be storeable as strings and have an
+  // implementation defined length.  By default they are not to exceed
+  // 64M.
+  repeated KVValue Values = 2;
 }
 
+// KVValue contains the actual values in the key/value system.  The
+// values are arbitrary strings, which carry with them an optional
+// ordering index.  Ordering indexes are not guaranteed to be unique.
+message KVValue {
+  required string Value = 1;
+  optional int32 Index = 2;
 }
 
 // An entity may be a person or a machine actor that wishes to act as
@@ -140,6 +158,12 @@ message EntityMeta {
   // undoubtedly be abused in that way.  To make this somewhat more
   // palatable, a generic K/V field is included.
   repeated string UntypedMeta = 253;
+
+  // The earlier UntypedMeta implementation had many problems.  It has
+  // been superceded by the KVData approach which permits quick sorting
+  // of values without manipulating strings, keys that have no reserved
+  // characters, and a generally cleaner interface.
+  repeated KVData KV = 254;
 }
 
 // While machine entities may belong to only one group, people
@@ -187,4 +211,9 @@ message Group {
   // palatable, a generic K/V field is included.
   repeated string UntypedMeta = 100;
 
+  // The earlier UntypedMeta implementation had many problems.  It has
+  // been superceded by the KVData approach which permits quick sorting
+  // of values without manipulating strings, keys that have no reserved
+  // characters, and a generally cleaner interface.
+  repeated KVData KV = 254;
 }
