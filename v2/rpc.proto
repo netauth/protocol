@@ -12,6 +12,10 @@ service NetAuth2 {
   rpc EntityInfo(EntityRequest) returns (ListOfEntities) {}
   rpc EntitySearch(SearchRequest) returns (ListOfEntities) {}
   rpc EntityUM(KVRequest) returns (ListOfStrings) {}
+  rpc EntityKVAdd(KV2Request) returns (Empty) {}
+  rpc EntityKVGet(KV2Request) returns (ListOfKVData) {}
+  rpc EntityKVDel(KV2Request) returns (Empty) {}
+  rpc EntityKVReplace(KV2Request) returns (Empty) {}
   rpc EntityKeys(KVRequest) returns (ListOfStrings) {}
   rpc EntityDestroy(EntityRequest) returns (Empty) {}
   rpc EntityLock(EntityRequest) returns (Empty) {}
@@ -27,6 +31,10 @@ service NetAuth2 {
   rpc GroupUpdate(GroupRequest) returns (Empty) {}
   rpc GroupInfo(GroupRequest) returns (ListOfGroups) {}
   rpc GroupUM(KVRequest) returns (ListOfStrings) {}
+  rpc GroupKVAdd(KV2Request) returns (Empty) {}
+  rpc GroupKVGet(KV2Request) returns (ListOfKVData) {}
+  rpc GroupKVDel(KV2Request) returns (Empty) {}
+  rpc GroupKVReplace(KV2Request) returns (Empty) {}
   rpc GroupUpdateRules(GroupRulesRequest) returns (Empty) {}
   rpc GroupAddMember(EntityRequest) returns (Empty) {}
   rpc GroupDelMember(EntityRequest) returns (Empty) {}
@@ -71,6 +79,11 @@ message KVRequest {
   optional string Value = 4;
 }
 
+message KV2Request {
+  optional string Target = 1;
+  optional KVData Data = 2;
+}
+
 message ListOfEntities {
   repeated Entity Entities = 1;
 }
@@ -81,6 +94,10 @@ message ListOfGroups {
 
 message ListOfStrings {
   repeated string Strings = 1;
+}
+
+message ListOfKVData {
+  repeated KVData KVData = 1;
 }
 
 message AuthRequest {

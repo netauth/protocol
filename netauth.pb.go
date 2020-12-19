@@ -8,42 +8,17 @@ It is generated from these files:
 	netauth.proto
 
 It has these top-level messages:
-	NetAuthRequest
-	ModEntityRequest
-	ModEntityKeyRequest
-	ModEntityMembershipRequest
-	ModGroupNestingRequest
-	ModCapabilityRequest
-	ModGroupRequest
-	GroupMemberRequest
-	GroupListRequest
-	ModEntityMetaRequest
-	ModGroupMetaRequest
-	SearchRequest
-	SimpleResult
-	TokenResult
-	KeyList
-	GroupList
-	GroupInfoResult
-	EntityList
-	UntypedMetaResult
-	PingRequest
-	PingResponse
+	KVData
+	KVValue
 	Entity
 	EntityMeta
 	Group
-	ClientInfo
 */
 package protocol
 
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-
-import (
-	context "golang.org/x/net/context"
-	grpc "google.golang.org/grpc"
-)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -163,822 +138,66 @@ func (x *ExpansionMode) UnmarshalJSON(data []byte) error {
 }
 func (ExpansionMode) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
-// An AuthRequest includes an Entity and some information to identify
-// the system that is making the request.
-type NetAuthRequest struct {
-	// The Entity is obviously the most important part of the
-	// AuthRequest which is the thing we want to authenticate.
-	Entity    *Entity `protobuf:"bytes,1,req,name=Entity" json:"Entity,omitempty"`
-	AuthToken *string `protobuf:"bytes,2,opt,name=AuthToken" json:"AuthToken,omitempty"`
-	// Client information for logging
-	Info             *ClientInfo `protobuf:"bytes,3,opt,name=Info" json:"Info,omitempty"`
-	XXX_unrecognized []byte      `json:"-"`
+// KVData holds the data for a single Key/Value dataset.  It is based
+// on holding the key which may be multi-valued, and may be an arbitrary
+// string.
+type KVData struct {
+	// A key needs to be representable as a string, though it is not //
+	// used for anything internally beyond a byte comparision for equality.
+	Key *string `protobuf:"bytes,1,req,name=Key" json:"Key,omitempty"`
+	// A key may have one or more values.  The values are completely
+	// opaque to NetAuth, but must be storeable as strings and have an
+	// implementation defined length.  By default they are not to exceed
+	// 64M.
+	Values           []*KVValue `protobuf:"bytes,2,rep,name=Values" json:"Values,omitempty"`
+	XXX_unrecognized []byte     `json:"-"`
 }
 
-func (m *NetAuthRequest) Reset()                    { *m = NetAuthRequest{} }
-func (m *NetAuthRequest) String() string            { return proto.CompactTextString(m) }
-func (*NetAuthRequest) ProtoMessage()               {}
-func (*NetAuthRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
+func (m *KVData) Reset()                    { *m = KVData{} }
+func (m *KVData) String() string            { return proto.CompactTextString(m) }
+func (*KVData) ProtoMessage()               {}
+func (*KVData) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
-func (m *NetAuthRequest) GetEntity() *Entity {
-	if m != nil {
-		return m.Entity
-	}
-	return nil
-}
-
-func (m *NetAuthRequest) GetAuthToken() string {
-	if m != nil && m.AuthToken != nil {
-		return *m.AuthToken
-	}
-	return ""
-}
-
-func (m *NetAuthRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
-	}
-	return nil
-}
-
-// ModEntityRequests use  an entity  and optionally a  modEntity.  For
-// all  requests except  changing  the secret,  the authentication  is
-// derived  from the  AuthToken.  In  the  case of  the change  secret
-// request the entity may need  to authenticate via secret if changing
-// parameters on itself.
-type ModEntityRequest struct {
-	// The request must always have an entity, the second entity may not
-	// be set in which case the first entity will be acted upon.
-	Entity *Entity `protobuf:"bytes,1,req,name=Entity" json:"Entity,omitempty"`
-	// This is the entity to act on, it may be set or it may not be.
-	ModEntity *Entity `protobuf:"bytes,2,opt,name=ModEntity" json:"ModEntity,omitempty"`
-	// Client information for logging
-	Info *ClientInfo `protobuf:"bytes,3,opt,name=Info" json:"Info,omitempty"`
-	// The authentication token is used to authorize changes made to the
-	// state of things in the NetAuth database.
-	AuthToken        *string `protobuf:"bytes,4,req,name=AuthToken" json:"AuthToken,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
-}
-
-func (m *ModEntityRequest) Reset()                    { *m = ModEntityRequest{} }
-func (m *ModEntityRequest) String() string            { return proto.CompactTextString(m) }
-func (*ModEntityRequest) ProtoMessage()               {}
-func (*ModEntityRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
-
-func (m *ModEntityRequest) GetEntity() *Entity {
-	if m != nil {
-		return m.Entity
-	}
-	return nil
-}
-
-func (m *ModEntityRequest) GetModEntity() *Entity {
-	if m != nil {
-		return m.ModEntity
-	}
-	return nil
-}
-
-func (m *ModEntityRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
-	}
-	return nil
-}
-
-func (m *ModEntityRequest) GetAuthToken() string {
-	if m != nil && m.AuthToken != nil {
-		return *m.AuthToken
-	}
-	return ""
-}
-
-// Modify the keys for a given entity.  If the caller wishes to just
-// list keys in an unauthenticated fashion, pass an empty token.
-type ModEntityKeyRequest struct {
-	// The request must have an entity and token to authorize the
-	// change, from there it may have a mode, type, and key, but these
-	// are not required.
-	Entity    *Entity     `protobuf:"bytes,1,req,name=Entity" json:"Entity,omitempty"`
-	AuthToken *string     `protobuf:"bytes,2,req,name=AuthToken" json:"AuthToken,omitempty"`
-	Info      *ClientInfo `protobuf:"bytes,3,opt,name=Info" json:"Info,omitempty"`
-	// Contents for the key change itself
-	Mode             *string `protobuf:"bytes,4,opt,name=Mode" json:"Mode,omitempty"`
-	Type             *string `protobuf:"bytes,5,opt,name=Type" json:"Type,omitempty"`
-	Key              *string `protobuf:"bytes,6,opt,name=Key" json:"Key,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
-}
-
-func (m *ModEntityKeyRequest) Reset()                    { *m = ModEntityKeyRequest{} }
-func (m *ModEntityKeyRequest) String() string            { return proto.CompactTextString(m) }
-func (*ModEntityKeyRequest) ProtoMessage()               {}
-func (*ModEntityKeyRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
-
-func (m *ModEntityKeyRequest) GetEntity() *Entity {
-	if m != nil {
-		return m.Entity
-	}
-	return nil
-}
-
-func (m *ModEntityKeyRequest) GetAuthToken() string {
-	if m != nil && m.AuthToken != nil {
-		return *m.AuthToken
-	}
-	return ""
-}
-
-func (m *ModEntityKeyRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
-	}
-	return nil
-}
-
-func (m *ModEntityKeyRequest) GetMode() string {
-	if m != nil && m.Mode != nil {
-		return *m.Mode
-	}
-	return ""
-}
-
-func (m *ModEntityKeyRequest) GetType() string {
-	if m != nil && m.Type != nil {
-		return *m.Type
-	}
-	return ""
-}
-
-func (m *ModEntityKeyRequest) GetKey() string {
+func (m *KVData) GetKey() string {
 	if m != nil && m.Key != nil {
 		return *m.Key
 	}
 	return ""
 }
 
-// ModEntityMembershipRequest alters the direct membership of
-// entities.  See ModGroupNestingRequest for indirect memberships.
-type ModEntityMembershipRequest struct {
-	// The entity in question
-	Entity *Entity `protobuf:"bytes,1,req,name=entity" json:"entity,omitempty"`
-	// The group that is being added or removed is taken as a group name
-	Group *Group `protobuf:"bytes,3,req,name=Group" json:"Group,omitempty"`
-	// Client information for logging
-	Info *ClientInfo `protobuf:"bytes,4,opt,name=Info" json:"Info,omitempty"`
-	// The authentication token is used to authorize changes made to the
-	// state of things in the NetAuth database.
-	AuthToken        *string `protobuf:"bytes,5,req,name=AuthToken" json:"AuthToken,omitempty"`
+func (m *KVData) GetValues() []*KVValue {
+	if m != nil {
+		return m.Values
+	}
+	return nil
+}
+
+// KVValue contains the actual values in the key/value system.  The
+// values are arbitrary strings, which carry with them an optional
+// ordering index.  Ordering indexes are not guaranteed to be unique.
+type KVValue struct {
+	Value            *string `protobuf:"bytes,1,req,name=Value" json:"Value,omitempty"`
+	Index            *int32  `protobuf:"varint,2,opt,name=Index" json:"Index,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
 
-func (m *ModEntityMembershipRequest) Reset()                    { *m = ModEntityMembershipRequest{} }
-func (m *ModEntityMembershipRequest) String() string            { return proto.CompactTextString(m) }
-func (*ModEntityMembershipRequest) ProtoMessage()               {}
-func (*ModEntityMembershipRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+func (m *KVValue) Reset()                    { *m = KVValue{} }
+func (m *KVValue) String() string            { return proto.CompactTextString(m) }
+func (*KVValue) ProtoMessage()               {}
+func (*KVValue) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
-func (m *ModEntityMembershipRequest) GetEntity() *Entity {
-	if m != nil {
-		return m.Entity
-	}
-	return nil
-}
-
-func (m *ModEntityMembershipRequest) GetGroup() *Group {
-	if m != nil {
-		return m.Group
-	}
-	return nil
-}
-
-func (m *ModEntityMembershipRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
-	}
-	return nil
-}
-
-func (m *ModEntityMembershipRequest) GetAuthToken() string {
-	if m != nil && m.AuthToken != nil {
-		return *m.AuthToken
-	}
-	return ""
-}
-
-// ModGroupNestingRequest handles the addition or removal of group
-// nesting operations.
-type ModGroupNestingRequest struct {
-	// This action must be authorized
-	AuthToken *string `protobuf:"bytes,1,req,name=AuthToken" json:"AuthToken,omitempty"`
-	// There must be a parent and child group for each request.
-	ParentGroup *Group `protobuf:"bytes,2,req,name=ParentGroup" json:"ParentGroup,omitempty"`
-	ChildGroup  *Group `protobuf:"bytes,3,req,name=ChildGroup" json:"ChildGroup,omitempty"`
-	// Expansions can either include children or exclude them.  The
-	// default is to include.
-	Mode *ExpansionMode `protobuf:"varint,4,opt,name=Mode,enum=ExpansionMode" json:"Mode,omitempty"`
-	// Like other requests this contains info about the caller
-	Info             *ClientInfo `protobuf:"bytes,5,opt,name=Info" json:"Info,omitempty"`
-	XXX_unrecognized []byte      `json:"-"`
-}
-
-func (m *ModGroupNestingRequest) Reset()                    { *m = ModGroupNestingRequest{} }
-func (m *ModGroupNestingRequest) String() string            { return proto.CompactTextString(m) }
-func (*ModGroupNestingRequest) ProtoMessage()               {}
-func (*ModGroupNestingRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
-
-func (m *ModGroupNestingRequest) GetAuthToken() string {
-	if m != nil && m.AuthToken != nil {
-		return *m.AuthToken
-	}
-	return ""
-}
-
-func (m *ModGroupNestingRequest) GetParentGroup() *Group {
-	if m != nil {
-		return m.ParentGroup
-	}
-	return nil
-}
-
-func (m *ModGroupNestingRequest) GetChildGroup() *Group {
-	if m != nil {
-		return m.ChildGroup
-	}
-	return nil
-}
-
-func (m *ModGroupNestingRequest) GetMode() ExpansionMode {
-	if m != nil && m.Mode != nil {
-		return *m.Mode
-	}
-	return ExpansionMode_INCLUDE
-}
-
-func (m *ModGroupNestingRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
-	}
-	return nil
-}
-
-// ModCapabilityRequest can alter the capabilities assigned to either
-// an entity or group.  If the entity is specified the group will be
-// ignored.
-type ModCapabilityRequest struct {
-	// This action must be authorized
-	AuthToken *string `protobuf:"bytes,1,req,name=AuthToken" json:"AuthToken,omitempty"`
-	// Either an entity or a group must be specified, if both are
-	// specified, the group will be ignored.
-	Entity *Entity `protobuf:"bytes,2,opt,name=Entity" json:"Entity,omitempty"`
-	Group  *Group  `protobuf:"bytes,3,opt,name=Group" json:"Group,omitempty"`
-	// The mode can be either 'ADD' or 'REMOVE'
-	Mode *string `protobuf:"bytes,4,req,name=Mode" json:"Mode,omitempty"`
-	// And of course, the capability must be specified
-	Capability *Capability `protobuf:"varint,5,req,name=Capability,enum=Capability" json:"Capability,omitempty"`
-	// Like other requests this contains info about the caller
-	Info             *ClientInfo `protobuf:"bytes,6,opt,name=Info" json:"Info,omitempty"`
-	XXX_unrecognized []byte      `json:"-"`
-}
-
-func (m *ModCapabilityRequest) Reset()                    { *m = ModCapabilityRequest{} }
-func (m *ModCapabilityRequest) String() string            { return proto.CompactTextString(m) }
-func (*ModCapabilityRequest) ProtoMessage()               {}
-func (*ModCapabilityRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
-
-func (m *ModCapabilityRequest) GetAuthToken() string {
-	if m != nil && m.AuthToken != nil {
-		return *m.AuthToken
-	}
-	return ""
-}
-
-func (m *ModCapabilityRequest) GetEntity() *Entity {
-	if m != nil {
-		return m.Entity
-	}
-	return nil
-}
-
-func (m *ModCapabilityRequest) GetGroup() *Group {
-	if m != nil {
-		return m.Group
-	}
-	return nil
-}
-
-func (m *ModCapabilityRequest) GetMode() string {
-	if m != nil && m.Mode != nil {
-		return *m.Mode
-	}
-	return ""
-}
-
-func (m *ModCapabilityRequest) GetCapability() Capability {
-	if m != nil && m.Capability != nil {
-		return *m.Capability
-	}
-	return Capability_GLOBAL_ROOT
-}
-
-func (m *ModCapabilityRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
-	}
-	return nil
-}
-
-// ModGroupRequest is used for modifying the a group.  This action can
-// only modify some fields on a group, as the name and number are
-// immutable after creation.
-type ModGroupRequest struct {
-	// The AuthToken for authorization of changes to the database.
-	AuthToken *string `protobuf:"bytes,1,req,name=AuthToken" json:"AuthToken,omitempty"`
-	// The group that's being modified.
-	Group *Group `protobuf:"bytes,2,req,name=Group" json:"Group,omitempty"`
-	// Client information for logging
-	Info             *ClientInfo `protobuf:"bytes,3,opt,name=Info" json:"Info,omitempty"`
-	XXX_unrecognized []byte      `json:"-"`
-}
-
-func (m *ModGroupRequest) Reset()                    { *m = ModGroupRequest{} }
-func (m *ModGroupRequest) String() string            { return proto.CompactTextString(m) }
-func (*ModGroupRequest) ProtoMessage()               {}
-func (*ModGroupRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
-
-func (m *ModGroupRequest) GetAuthToken() string {
-	if m != nil && m.AuthToken != nil {
-		return *m.AuthToken
-	}
-	return ""
-}
-
-func (m *ModGroupRequest) GetGroup() *Group {
-	if m != nil {
-		return m.Group
-	}
-	return nil
-}
-
-func (m *ModGroupRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
-	}
-	return nil
-}
-
-// A GroupMemberRequest requests the members of a given group.  This
-// query is quite expensive and is fairly unoptimized, consider
-// carefully if you need to use this in your application.
-type GroupMemberRequest struct {
-	// The group for which info is being requested.
-	Group *Group `protobuf:"bytes,1,opt,name=Group" json:"Group,omitempty"`
-	// Client information for logging
-	Info             *ClientInfo `protobuf:"bytes,2,opt,name=Info" json:"Info,omitempty"`
-	XXX_unrecognized []byte      `json:"-"`
-}
-
-func (m *GroupMemberRequest) Reset()                    { *m = GroupMemberRequest{} }
-func (m *GroupMemberRequest) String() string            { return proto.CompactTextString(m) }
-func (*GroupMemberRequest) ProtoMessage()               {}
-func (*GroupMemberRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
-
-func (m *GroupMemberRequest) GetGroup() *Group {
-	if m != nil {
-		return m.Group
-	}
-	return nil
-}
-
-func (m *GroupMemberRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
-	}
-	return nil
-}
-
-// A GroupListRequest summons the listing of groups for the provided
-// entity.  Optionally the client may disable indirect lookups, but
-// this is not the default due to this causing unintuitive group
-// results to be returned.
-type GroupListRequest struct {
-	Info             *ClientInfo `protobuf:"bytes,1,opt,name=Info" json:"Info,omitempty"`
-	Entity           *Entity     `protobuf:"bytes,2,opt,name=Entity" json:"Entity,omitempty"`
-	IncludeIndirects *bool       `protobuf:"varint,3,opt,name=IncludeIndirects,def=1" json:"IncludeIndirects,omitempty"`
-	XXX_unrecognized []byte      `json:"-"`
-}
-
-func (m *GroupListRequest) Reset()                    { *m = GroupListRequest{} }
-func (m *GroupListRequest) String() string            { return proto.CompactTextString(m) }
-func (*GroupListRequest) ProtoMessage()               {}
-func (*GroupListRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
-
-const Default_GroupListRequest_IncludeIndirects bool = true
-
-func (m *GroupListRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
-	}
-	return nil
-}
-
-func (m *GroupListRequest) GetEntity() *Entity {
-	if m != nil {
-		return m.Entity
-	}
-	return nil
-}
-
-func (m *GroupListRequest) GetIncludeIndirects() bool {
-	if m != nil && m.IncludeIndirects != nil {
-		return *m.IncludeIndirects
-	}
-	return Default_GroupListRequest_IncludeIndirects
-}
-
-// A ModEntityMetaRequest includes the metadata needed to modify the
-// untyped key/value store on an entity.
-type ModEntityMetaRequest struct {
-	// The request must always have an entity, the second entity may not
-	// be set in which case the first entity will be acted upon.
-	Entity *Entity `protobuf:"bytes,1,req,name=Entity" json:"Entity,omitempty"`
-	// Parameters needed to manage untyped metadata
-	Mode  *string `protobuf:"bytes,2,req,name=Mode" json:"Mode,omitempty"`
-	Key   *string `protobuf:"bytes,3,req,name=Key" json:"Key,omitempty"`
-	Value *string `protobuf:"bytes,4,opt,name=Value" json:"Value,omitempty"`
-	// Client information for logging
-	Info *ClientInfo `protobuf:"bytes,5,opt,name=Info" json:"Info,omitempty"`
-	// The authentication token is used to authorize changes made to the
-	// state of things in the NetAuth database.
-	AuthToken        *string `protobuf:"bytes,6,req,name=AuthToken" json:"AuthToken,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
-}
-
-func (m *ModEntityMetaRequest) Reset()                    { *m = ModEntityMetaRequest{} }
-func (m *ModEntityMetaRequest) String() string            { return proto.CompactTextString(m) }
-func (*ModEntityMetaRequest) ProtoMessage()               {}
-func (*ModEntityMetaRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
-
-func (m *ModEntityMetaRequest) GetEntity() *Entity {
-	if m != nil {
-		return m.Entity
-	}
-	return nil
-}
-
-func (m *ModEntityMetaRequest) GetMode() string {
-	if m != nil && m.Mode != nil {
-		return *m.Mode
-	}
-	return ""
-}
-
-func (m *ModEntityMetaRequest) GetKey() string {
-	if m != nil && m.Key != nil {
-		return *m.Key
-	}
-	return ""
-}
-
-func (m *ModEntityMetaRequest) GetValue() string {
+func (m *KVValue) GetValue() string {
 	if m != nil && m.Value != nil {
 		return *m.Value
 	}
 	return ""
 }
 
-func (m *ModEntityMetaRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
+func (m *KVValue) GetIndex() int32 {
+	if m != nil && m.Index != nil {
+		return *m.Index
 	}
-	return nil
-}
-
-func (m *ModEntityMetaRequest) GetAuthToken() string {
-	if m != nil && m.AuthToken != nil {
-		return *m.AuthToken
-	}
-	return ""
-}
-
-// A ModGroupMetaRequest includes the metadata needed to modify the
-// untyped key/value store on an entity.
-type ModGroupMetaRequest struct {
-	// The request must always have an entity, the second entity may not
-	// be set in which case the first entity will be acted upon.
-	Group *Group `protobuf:"bytes,1,req,name=Group" json:"Group,omitempty"`
-	// Parameters needed to manage untyped metadata
-	Mode  *string `protobuf:"bytes,2,req,name=Mode" json:"Mode,omitempty"`
-	Key   *string `protobuf:"bytes,3,req,name=Key" json:"Key,omitempty"`
-	Value *string `protobuf:"bytes,4,opt,name=Value" json:"Value,omitempty"`
-	// Client information for logging
-	Info *ClientInfo `protobuf:"bytes,5,opt,name=Info" json:"Info,omitempty"`
-	// The authentication token is used to authorize changes made to the
-	// state of things in the NetAuth database.
-	AuthToken        *string `protobuf:"bytes,6,req,name=AuthToken" json:"AuthToken,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
-}
-
-func (m *ModGroupMetaRequest) Reset()                    { *m = ModGroupMetaRequest{} }
-func (m *ModGroupMetaRequest) String() string            { return proto.CompactTextString(m) }
-func (*ModGroupMetaRequest) ProtoMessage()               {}
-func (*ModGroupMetaRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
-
-func (m *ModGroupMetaRequest) GetGroup() *Group {
-	if m != nil {
-		return m.Group
-	}
-	return nil
-}
-
-func (m *ModGroupMetaRequest) GetMode() string {
-	if m != nil && m.Mode != nil {
-		return *m.Mode
-	}
-	return ""
-}
-
-func (m *ModGroupMetaRequest) GetKey() string {
-	if m != nil && m.Key != nil {
-		return *m.Key
-	}
-	return ""
-}
-
-func (m *ModGroupMetaRequest) GetValue() string {
-	if m != nil && m.Value != nil {
-		return *m.Value
-	}
-	return ""
-}
-
-func (m *ModGroupMetaRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
-	}
-	return nil
-}
-
-func (m *ModGroupMetaRequest) GetAuthToken() string {
-	if m != nil && m.AuthToken != nil {
-		return *m.AuthToken
-	}
-	return ""
-}
-
-// A SearchRequest contains a search expression, and the standard
-// client info struct.
-type SearchRequest struct {
-	Expression       *string     `protobuf:"bytes,1,opt,name=expression" json:"expression,omitempty"`
-	Info             *ClientInfo `protobuf:"bytes,2,opt,name=Info" json:"Info,omitempty"`
-	XXX_unrecognized []byte      `json:"-"`
-}
-
-func (m *SearchRequest) Reset()                    { *m = SearchRequest{} }
-func (m *SearchRequest) String() string            { return proto.CompactTextString(m) }
-func (*SearchRequest) ProtoMessage()               {}
-func (*SearchRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
-
-func (m *SearchRequest) GetExpression() string {
-	if m != nil && m.Expression != nil {
-		return *m.Expression
-	}
-	return ""
-}
-
-func (m *SearchRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
-	}
-	return nil
-}
-
-// A SimpleResult can be returned from most services and explains
-// whether or not the service completed successfully or not, and an
-// optional message that may explain in more detail.
-type SimpleResult struct {
-	// Required is forever, but a SimpleResult without a success state
-	// doesn't mean much.  This field must be present in all replies.
-	Success *bool `protobuf:"varint,1,req,name=success,def=0" json:"success,omitempty"`
-	// In the failure case a message may be provided detailing the
-	// failure.  This message must not contain secure information and
-	// there must be an expectation that anything placed in this field
-	// will be shown directly to a person or written to a log.
-	Msg              *string `protobuf:"bytes,2,opt,name=msg" json:"msg,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
-}
-
-func (m *SimpleResult) Reset()                    { *m = SimpleResult{} }
-func (m *SimpleResult) String() string            { return proto.CompactTextString(m) }
-func (*SimpleResult) ProtoMessage()               {}
-func (*SimpleResult) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
-
-const Default_SimpleResult_Success bool = false
-
-func (m *SimpleResult) GetSuccess() bool {
-	if m != nil && m.Success != nil {
-		return *m.Success
-	}
-	return Default_SimpleResult_Success
-}
-
-func (m *SimpleResult) GetMsg() string {
-	if m != nil && m.Msg != nil {
-		return *m.Msg
-	}
-	return ""
-}
-
-// A token reply will include the status of the authentication
-// request, and if successful, an authentication token that can be
-// used for future requests.
-type TokenResult struct {
-	// Success will provide a high level status of if the reply
-	// succeeded.
-	Success *bool `protobuf:"varint,1,req,name=success,def=0" json:"success,omitempty"`
-	// Msg contains information about a failure if applicable.
-	Msg *string `protobuf:"bytes,2,opt,name=Msg" json:"Msg,omitempty"`
-	// Token contains the token if the request was successful or is
-	// empty otherwise.
-	Token            *string `protobuf:"bytes,3,opt,name=Token" json:"Token,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
-}
-
-func (m *TokenResult) Reset()                    { *m = TokenResult{} }
-func (m *TokenResult) String() string            { return proto.CompactTextString(m) }
-func (*TokenResult) ProtoMessage()               {}
-func (*TokenResult) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
-
-const Default_TokenResult_Success bool = false
-
-func (m *TokenResult) GetSuccess() bool {
-	if m != nil && m.Success != nil {
-		return *m.Success
-	}
-	return Default_TokenResult_Success
-}
-
-func (m *TokenResult) GetMsg() string {
-	if m != nil && m.Msg != nil {
-		return *m.Msg
-	}
-	return ""
-}
-
-func (m *TokenResult) GetToken() string {
-	if m != nil && m.Token != nil {
-		return *m.Token
-	}
-	return ""
-}
-
-// A KeyList is a list of keys.
-type KeyList struct {
-	Keys             []string `protobuf:"bytes,1,rep,name=Keys" json:"Keys,omitempty"`
-	XXX_unrecognized []byte   `json:"-"`
-}
-
-func (m *KeyList) Reset()                    { *m = KeyList{} }
-func (m *KeyList) String() string            { return proto.CompactTextString(m) }
-func (*KeyList) ProtoMessage()               {}
-func (*KeyList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
-
-func (m *KeyList) GetKeys() []string {
-	if m != nil {
-		return m.Keys
-	}
-	return nil
-}
-
-// A GroupList contains a literal list of groups, such as returned by
-// a search function.
-type GroupList struct {
-	Groups           []*Group `protobuf:"bytes,1,rep,name=Groups" json:"Groups,omitempty"`
-	XXX_unrecognized []byte   `json:"-"`
-}
-
-func (m *GroupList) Reset()                    { *m = GroupList{} }
-func (m *GroupList) String() string            { return proto.CompactTextString(m) }
-func (*GroupList) ProtoMessage()               {}
-func (*GroupList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
-
-func (m *GroupList) GetGroups() []*Group {
-	if m != nil {
-		return m.Groups
-	}
-	return nil
-}
-
-// A GroupInfoResult contains exactly one group, and for convenience a
-// list of groups that this group manages.
-type GroupInfoResult struct {
-	Group            *Group   `protobuf:"bytes,1,req,name=Group" json:"Group,omitempty"`
-	Managed          []string `protobuf:"bytes,2,rep,name=Managed" json:"Managed,omitempty"`
-	XXX_unrecognized []byte   `json:"-"`
-}
-
-func (m *GroupInfoResult) Reset()                    { *m = GroupInfoResult{} }
-func (m *GroupInfoResult) String() string            { return proto.CompactTextString(m) }
-func (*GroupInfoResult) ProtoMessage()               {}
-func (*GroupInfoResult) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
-
-func (m *GroupInfoResult) GetGroup() *Group {
-	if m != nil {
-		return m.Group
-	}
-	return nil
-}
-
-func (m *GroupInfoResult) GetManaged() []string {
-	if m != nil {
-		return m.Managed
-	}
-	return nil
-}
-
-// GroupMemberList is returned when a query generates a list of
-// entities.
-type EntityList struct {
-	Members          []*Entity `protobuf:"bytes,1,rep,name=Members" json:"Members,omitempty"`
-	XXX_unrecognized []byte    `json:"-"`
-}
-
-func (m *EntityList) Reset()                    { *m = EntityList{} }
-func (m *EntityList) String() string            { return proto.CompactTextString(m) }
-func (*EntityList) ProtoMessage()               {}
-func (*EntityList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
-
-func (m *EntityList) GetMembers() []*Entity {
-	if m != nil {
-		return m.Members
-	}
-	return nil
-}
-
-// UntypedMetaResponse contains a repeated string field which is
-// converted to a map on the client side.
-type UntypedMetaResult struct {
-	UntypedMeta      []string `protobuf:"bytes,1,rep,name=UntypedMeta" json:"UntypedMeta,omitempty"`
-	XXX_unrecognized []byte   `json:"-"`
-}
-
-func (m *UntypedMetaResult) Reset()                    { *m = UntypedMetaResult{} }
-func (m *UntypedMetaResult) String() string            { return proto.CompactTextString(m) }
-func (*UntypedMetaResult) ProtoMessage()               {}
-func (*UntypedMetaResult) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
-
-func (m *UntypedMetaResult) GetUntypedMeta() []string {
-	if m != nil {
-		return m.UntypedMeta
-	}
-	return nil
-}
-
-// The PingRequest is used to ask the server to return its health
-// status to the requestor.
-type PingRequest struct {
-	// Client information for logging
-	Info             *ClientInfo `protobuf:"bytes,1,opt,name=Info" json:"Info,omitempty"`
-	XXX_unrecognized []byte      `json:"-"`
-}
-
-func (m *PingRequest) Reset()                    { *m = PingRequest{} }
-func (m *PingRequest) String() string            { return proto.CompactTextString(m) }
-func (*PingRequest) ProtoMessage()               {}
-func (*PingRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
-
-func (m *PingRequest) GetInfo() *ClientInfo {
-	if m != nil {
-		return m.Info
-	}
-	return nil
-}
-
-// The PingReply is used to tell the client if this server is healthy
-// and ready to serve.
-type PingResponse struct {
-	// The server will reply healthy=True if it is ready to serve.
-	Healthy *bool `protobuf:"varint,1,opt,name=Healthy" json:"Healthy,omitempty"`
-	// Optionally the server may have a message if it is not healthy.
-	Msg              *string `protobuf:"bytes,2,opt,name=Msg" json:"Msg,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
-}
-
-func (m *PingResponse) Reset()                    { *m = PingResponse{} }
-func (m *PingResponse) String() string            { return proto.CompactTextString(m) }
-func (*PingResponse) ProtoMessage()               {}
-func (*PingResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
-
-func (m *PingResponse) GetHealthy() bool {
-	if m != nil && m.Healthy != nil {
-		return *m.Healthy
-	}
-	return false
-}
-
-func (m *PingResponse) GetMsg() string {
-	if m != nil && m.Msg != nil {
-		return *m.Msg
-	}
-	return ""
+	return 0
 }
 
 // An entity may be a person or a machine actor that wishes to act as
@@ -1007,7 +226,7 @@ type Entity struct {
 func (m *Entity) Reset()                    { *m = Entity{} }
 func (m *Entity) String() string            { return proto.CompactTextString(m) }
 func (*Entity) ProtoMessage()               {}
-func (*Entity) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{21} }
+func (*Entity) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
 
 func (m *Entity) GetID() string {
 	if m != nil && m.ID != nil {
@@ -1102,14 +321,19 @@ type EntityMeta struct {
 	// While NetAuth isn't a general purpose directory, it will
 	// undoubtedly be abused in that way.  To make this somewhat more
 	// palatable, a generic K/V field is included.
-	UntypedMeta      []string `protobuf:"bytes,253,rep,name=UntypedMeta" json:"UntypedMeta,omitempty"`
-	XXX_unrecognized []byte   `json:"-"`
+	UntypedMeta []string `protobuf:"bytes,253,rep,name=UntypedMeta" json:"UntypedMeta,omitempty"`
+	// The earlier UntypedMeta implementation had many problems.  It has
+	// been superceded by the KVData approach which permits quick sorting
+	// of values without manipulating strings, keys that have no reserved
+	// characters, and a generally cleaner interface.
+	KV               []*KVData `protobuf:"bytes,254,rep,name=KV" json:"KV,omitempty"`
+	XXX_unrecognized []byte    `json:"-"`
 }
 
 func (m *EntityMeta) Reset()                    { *m = EntityMeta{} }
 func (m *EntityMeta) String() string            { return proto.CompactTextString(m) }
 func (*EntityMeta) ProtoMessage()               {}
-func (*EntityMeta) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{22} }
+func (*EntityMeta) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
 func (m *EntityMeta) GetPrimaryGroup() string {
 	if m != nil && m.PrimaryGroup != nil {
@@ -1202,6 +426,13 @@ func (m *EntityMeta) GetUntypedMeta() []string {
 	return nil
 }
 
+func (m *EntityMeta) GetKV() []*KVData {
+	if m != nil {
+		return m.KV
+	}
+	return nil
+}
+
 // While machine entities may belong to only one group, people
 // entities often belong to many groups at once.  This message
 // structures the reply for the additional groups.
@@ -1239,14 +470,19 @@ type Group struct {
 	// While NetAuth isn't a general purpose directory, it will
 	// undoubtedly be abused in that way.  To make this somewhat more
 	// palatable, a generic K/V field is included.
-	UntypedMeta      []string `protobuf:"bytes,100,rep,name=UntypedMeta" json:"UntypedMeta,omitempty"`
-	XXX_unrecognized []byte   `json:"-"`
+	UntypedMeta []string `protobuf:"bytes,100,rep,name=UntypedMeta" json:"UntypedMeta,omitempty"`
+	// The earlier UntypedMeta implementation had many problems.  It has
+	// been superceded by the KVData approach which permits quick sorting
+	// of values without manipulating strings, keys that have no reserved
+	// characters, and a generally cleaner interface.
+	KV               []*KVData `protobuf:"bytes,254,rep,name=KV" json:"KV,omitempty"`
+	XXX_unrecognized []byte    `json:"-"`
 }
 
 func (m *Group) Reset()                    { *m = Group{} }
 func (m *Group) String() string            { return proto.CompactTextString(m) }
 func (*Group) ProtoMessage()               {}
-func (*Group) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{23} }
+func (*Group) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
 
 func (m *Group) GetName() string {
 	if m != nil && m.Name != nil {
@@ -1297,1104 +533,68 @@ func (m *Group) GetUntypedMeta() []string {
 	return nil
 }
 
-// The ClientInfo message contains information about the client
-// originating the request.  This information must not be used for
-// security functions of any kind, as it is directly editable by the
-// client.
-type ClientInfo struct {
-	// The ID is to be used to define the originating client, this
-	// should in general be set to the client's hostname, or otherwise
-	// some persistent system identifier.
-	ID *string `protobuf:"bytes,1,opt,name=ID" json:"ID,omitempty"`
-	// The Service is an identifier that defined what is asking the
-	// system for information.  This should usually be set to the
-	// application name, or 'SYSTEM' if the request is on behalf of the
-	// system itself.
-	Service          *string `protobuf:"bytes,2,opt,name=Service" json:"Service,omitempty"`
-	XXX_unrecognized []byte  `json:"-"`
-}
-
-func (m *ClientInfo) Reset()                    { *m = ClientInfo{} }
-func (m *ClientInfo) String() string            { return proto.CompactTextString(m) }
-func (*ClientInfo) ProtoMessage()               {}
-func (*ClientInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{24} }
-
-func (m *ClientInfo) GetID() string {
-	if m != nil && m.ID != nil {
-		return *m.ID
+func (m *Group) GetKV() []*KVData {
+	if m != nil {
+		return m.KV
 	}
-	return ""
-}
-
-func (m *ClientInfo) GetService() string {
-	if m != nil && m.Service != nil {
-		return *m.Service
-	}
-	return ""
+	return nil
 }
 
 func init() {
-	proto.RegisterType((*NetAuthRequest)(nil), "NetAuthRequest")
-	proto.RegisterType((*ModEntityRequest)(nil), "ModEntityRequest")
-	proto.RegisterType((*ModEntityKeyRequest)(nil), "ModEntityKeyRequest")
-	proto.RegisterType((*ModEntityMembershipRequest)(nil), "ModEntityMembershipRequest")
-	proto.RegisterType((*ModGroupNestingRequest)(nil), "ModGroupNestingRequest")
-	proto.RegisterType((*ModCapabilityRequest)(nil), "ModCapabilityRequest")
-	proto.RegisterType((*ModGroupRequest)(nil), "ModGroupRequest")
-	proto.RegisterType((*GroupMemberRequest)(nil), "GroupMemberRequest")
-	proto.RegisterType((*GroupListRequest)(nil), "GroupListRequest")
-	proto.RegisterType((*ModEntityMetaRequest)(nil), "ModEntityMetaRequest")
-	proto.RegisterType((*ModGroupMetaRequest)(nil), "ModGroupMetaRequest")
-	proto.RegisterType((*SearchRequest)(nil), "SearchRequest")
-	proto.RegisterType((*SimpleResult)(nil), "SimpleResult")
-	proto.RegisterType((*TokenResult)(nil), "TokenResult")
-	proto.RegisterType((*KeyList)(nil), "KeyList")
-	proto.RegisterType((*GroupList)(nil), "GroupList")
-	proto.RegisterType((*GroupInfoResult)(nil), "GroupInfoResult")
-	proto.RegisterType((*EntityList)(nil), "EntityList")
-	proto.RegisterType((*UntypedMetaResult)(nil), "UntypedMetaResult")
-	proto.RegisterType((*PingRequest)(nil), "PingRequest")
-	proto.RegisterType((*PingResponse)(nil), "PingResponse")
+	proto.RegisterType((*KVData)(nil), "KVData")
+	proto.RegisterType((*KVValue)(nil), "KVValue")
 	proto.RegisterType((*Entity)(nil), "Entity")
 	proto.RegisterType((*EntityMeta)(nil), "EntityMeta")
 	proto.RegisterType((*Group)(nil), "Group")
-	proto.RegisterType((*ClientInfo)(nil), "ClientInfo")
 	proto.RegisterEnum("Capability", Capability_name, Capability_value)
 	proto.RegisterEnum("ExpansionMode", ExpansionMode_name, ExpansionMode_value)
-}
-
-// Reference imports to suppress errors if they are not otherwise used.
-var _ context.Context
-var _ grpc.ClientConn
-
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
-
-// Client API for NetAuth service
-
-type NetAuthClient interface {
-	// It is desireable to ping the server for status and health
-	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
-	// AuthEntity and GetToken both verify that an entity is who they
-	// claim to be (or at least that they posses the identifying
-	// information) with the only difference being that GetToken will
-	// unsurprisingly return a token on success.
-	AuthEntity(ctx context.Context, in *NetAuthRequest, opts ...grpc.CallOption) (*SimpleResult, error)
-	GetToken(ctx context.Context, in *NetAuthRequest, opts ...grpc.CallOption) (*TokenResult, error)
-	ValidateToken(ctx context.Context, in *NetAuthRequest, opts ...grpc.CallOption) (*SimpleResult, error)
-	LockEntity(ctx context.Context, in *NetAuthRequest, opts ...grpc.CallOption) (*SimpleResult, error)
-	UnlockEntity(ctx context.Context, in *NetAuthRequest, opts ...grpc.CallOption) (*SimpleResult, error)
-	// ChangeSecret is unusual in that it uses the token if vouching for
-	// *another* entity's secret being changed, but if the change is for
-	// the requesting entity, the original secret must be provided.
-	ChangeSecret(ctx context.Context, in *ModEntityRequest, opts ...grpc.CallOption) (*SimpleResult, error)
-	// AssignCapability assigns or removes capabilities on an entity or
-	// a group.
-	ManageCapabilities(ctx context.Context, in *ModCapabilityRequest, opts ...grpc.CallOption) (*SimpleResult, error)
-	// Add and remove Entities
-	NewEntity(ctx context.Context, in *ModEntityRequest, opts ...grpc.CallOption) (*SimpleResult, error)
-	RemoveEntity(ctx context.Context, in *ModEntityRequest, opts ...grpc.CallOption) (*SimpleResult, error)
-	// Get and set meta information about entities
-	EntityInfo(ctx context.Context, in *NetAuthRequest, opts ...grpc.CallOption) (*Entity, error)
-	ModifyEntityMeta(ctx context.Context, in *ModEntityRequest, opts ...grpc.CallOption) (*SimpleResult, error)
-	ModifyEntityKeys(ctx context.Context, in *ModEntityKeyRequest, opts ...grpc.CallOption) (*KeyList, error)
-	ModifyUntypedEntityMeta(ctx context.Context, in *ModEntityMetaRequest, opts ...grpc.CallOption) (*UntypedMetaResult, error)
-	SearchEntities(ctx context.Context, in *SearchRequest, opts ...grpc.CallOption) (*EntityList, error)
-	// Add, Remove, and Modify groups
-	NewGroup(ctx context.Context, in *ModGroupRequest, opts ...grpc.CallOption) (*SimpleResult, error)
-	DeleteGroup(ctx context.Context, in *ModGroupRequest, opts ...grpc.CallOption) (*SimpleResult, error)
-	ModifyGroupMeta(ctx context.Context, in *ModGroupRequest, opts ...grpc.CallOption) (*SimpleResult, error)
-	GroupInfo(ctx context.Context, in *ModGroupRequest, opts ...grpc.CallOption) (*GroupInfoResult, error)
-	ModifyUntypedGroupMeta(ctx context.Context, in *ModGroupMetaRequest, opts ...grpc.CallOption) (*UntypedMetaResult, error)
-	SearchGroups(ctx context.Context, in *SearchRequest, opts ...grpc.CallOption) (*GroupList, error)
-	// List groups and members
-	ListGroups(ctx context.Context, in *GroupListRequest, opts ...grpc.CallOption) (*GroupList, error)
-	ListGroupMembers(ctx context.Context, in *GroupMemberRequest, opts ...grpc.CallOption) (*EntityList, error)
-	// Modify direct group membership
-	AddEntityToGroup(ctx context.Context, in *ModEntityMembershipRequest, opts ...grpc.CallOption) (*SimpleResult, error)
-	RemoveEntityFromGroup(ctx context.Context, in *ModEntityMembershipRequest, opts ...grpc.CallOption) (*SimpleResult, error)
-	// Modify nested group membership
-	ModifyGroupNesting(ctx context.Context, in *ModGroupNestingRequest, opts ...grpc.CallOption) (*SimpleResult, error)
-}
-
-type netAuthClient struct {
-	cc *grpc.ClientConn
-}
-
-func NewNetAuthClient(cc *grpc.ClientConn) NetAuthClient {
-	return &netAuthClient{cc}
-}
-
-func (c *netAuthClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error) {
-	out := new(PingResponse)
-	err := grpc.Invoke(ctx, "/NetAuth/Ping", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) AuthEntity(ctx context.Context, in *NetAuthRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
-	out := new(SimpleResult)
-	err := grpc.Invoke(ctx, "/NetAuth/AuthEntity", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) GetToken(ctx context.Context, in *NetAuthRequest, opts ...grpc.CallOption) (*TokenResult, error) {
-	out := new(TokenResult)
-	err := grpc.Invoke(ctx, "/NetAuth/GetToken", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) ValidateToken(ctx context.Context, in *NetAuthRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
-	out := new(SimpleResult)
-	err := grpc.Invoke(ctx, "/NetAuth/ValidateToken", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) LockEntity(ctx context.Context, in *NetAuthRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
-	out := new(SimpleResult)
-	err := grpc.Invoke(ctx, "/NetAuth/LockEntity", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) UnlockEntity(ctx context.Context, in *NetAuthRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
-	out := new(SimpleResult)
-	err := grpc.Invoke(ctx, "/NetAuth/UnlockEntity", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) ChangeSecret(ctx context.Context, in *ModEntityRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
-	out := new(SimpleResult)
-	err := grpc.Invoke(ctx, "/NetAuth/ChangeSecret", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) ManageCapabilities(ctx context.Context, in *ModCapabilityRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
-	out := new(SimpleResult)
-	err := grpc.Invoke(ctx, "/NetAuth/ManageCapabilities", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) NewEntity(ctx context.Context, in *ModEntityRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
-	out := new(SimpleResult)
-	err := grpc.Invoke(ctx, "/NetAuth/NewEntity", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) RemoveEntity(ctx context.Context, in *ModEntityRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
-	out := new(SimpleResult)
-	err := grpc.Invoke(ctx, "/NetAuth/RemoveEntity", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) EntityInfo(ctx context.Context, in *NetAuthRequest, opts ...grpc.CallOption) (*Entity, error) {
-	out := new(Entity)
-	err := grpc.Invoke(ctx, "/NetAuth/EntityInfo", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) ModifyEntityMeta(ctx context.Context, in *ModEntityRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
-	out := new(SimpleResult)
-	err := grpc.Invoke(ctx, "/NetAuth/ModifyEntityMeta", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) ModifyEntityKeys(ctx context.Context, in *ModEntityKeyRequest, opts ...grpc.CallOption) (*KeyList, error) {
-	out := new(KeyList)
-	err := grpc.Invoke(ctx, "/NetAuth/ModifyEntityKeys", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) ModifyUntypedEntityMeta(ctx context.Context, in *ModEntityMetaRequest, opts ...grpc.CallOption) (*UntypedMetaResult, error) {
-	out := new(UntypedMetaResult)
-	err := grpc.Invoke(ctx, "/NetAuth/ModifyUntypedEntityMeta", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) SearchEntities(ctx context.Context, in *SearchRequest, opts ...grpc.CallOption) (*EntityList, error) {
-	out := new(EntityList)
-	err := grpc.Invoke(ctx, "/NetAuth/SearchEntities", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) NewGroup(ctx context.Context, in *ModGroupRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
-	out := new(SimpleResult)
-	err := grpc.Invoke(ctx, "/NetAuth/NewGroup", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) DeleteGroup(ctx context.Context, in *ModGroupRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
-	out := new(SimpleResult)
-	err := grpc.Invoke(ctx, "/NetAuth/DeleteGroup", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) ModifyGroupMeta(ctx context.Context, in *ModGroupRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
-	out := new(SimpleResult)
-	err := grpc.Invoke(ctx, "/NetAuth/ModifyGroupMeta", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) GroupInfo(ctx context.Context, in *ModGroupRequest, opts ...grpc.CallOption) (*GroupInfoResult, error) {
-	out := new(GroupInfoResult)
-	err := grpc.Invoke(ctx, "/NetAuth/GroupInfo", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) ModifyUntypedGroupMeta(ctx context.Context, in *ModGroupMetaRequest, opts ...grpc.CallOption) (*UntypedMetaResult, error) {
-	out := new(UntypedMetaResult)
-	err := grpc.Invoke(ctx, "/NetAuth/ModifyUntypedGroupMeta", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) SearchGroups(ctx context.Context, in *SearchRequest, opts ...grpc.CallOption) (*GroupList, error) {
-	out := new(GroupList)
-	err := grpc.Invoke(ctx, "/NetAuth/SearchGroups", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) ListGroups(ctx context.Context, in *GroupListRequest, opts ...grpc.CallOption) (*GroupList, error) {
-	out := new(GroupList)
-	err := grpc.Invoke(ctx, "/NetAuth/ListGroups", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) ListGroupMembers(ctx context.Context, in *GroupMemberRequest, opts ...grpc.CallOption) (*EntityList, error) {
-	out := new(EntityList)
-	err := grpc.Invoke(ctx, "/NetAuth/ListGroupMembers", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) AddEntityToGroup(ctx context.Context, in *ModEntityMembershipRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
-	out := new(SimpleResult)
-	err := grpc.Invoke(ctx, "/NetAuth/AddEntityToGroup", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) RemoveEntityFromGroup(ctx context.Context, in *ModEntityMembershipRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
-	out := new(SimpleResult)
-	err := grpc.Invoke(ctx, "/NetAuth/RemoveEntityFromGroup", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *netAuthClient) ModifyGroupNesting(ctx context.Context, in *ModGroupNestingRequest, opts ...grpc.CallOption) (*SimpleResult, error) {
-	out := new(SimpleResult)
-	err := grpc.Invoke(ctx, "/NetAuth/ModifyGroupNesting", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// Server API for NetAuth service
-
-type NetAuthServer interface {
-	// It is desireable to ping the server for status and health
-	Ping(context.Context, *PingRequest) (*PingResponse, error)
-	// AuthEntity and GetToken both verify that an entity is who they
-	// claim to be (or at least that they posses the identifying
-	// information) with the only difference being that GetToken will
-	// unsurprisingly return a token on success.
-	AuthEntity(context.Context, *NetAuthRequest) (*SimpleResult, error)
-	GetToken(context.Context, *NetAuthRequest) (*TokenResult, error)
-	ValidateToken(context.Context, *NetAuthRequest) (*SimpleResult, error)
-	LockEntity(context.Context, *NetAuthRequest) (*SimpleResult, error)
-	UnlockEntity(context.Context, *NetAuthRequest) (*SimpleResult, error)
-	// ChangeSecret is unusual in that it uses the token if vouching for
-	// *another* entity's secret being changed, but if the change is for
-	// the requesting entity, the original secret must be provided.
-	ChangeSecret(context.Context, *ModEntityRequest) (*SimpleResult, error)
-	// AssignCapability assigns or removes capabilities on an entity or
-	// a group.
-	ManageCapabilities(context.Context, *ModCapabilityRequest) (*SimpleResult, error)
-	// Add and remove Entities
-	NewEntity(context.Context, *ModEntityRequest) (*SimpleResult, error)
-	RemoveEntity(context.Context, *ModEntityRequest) (*SimpleResult, error)
-	// Get and set meta information about entities
-	EntityInfo(context.Context, *NetAuthRequest) (*Entity, error)
-	ModifyEntityMeta(context.Context, *ModEntityRequest) (*SimpleResult, error)
-	ModifyEntityKeys(context.Context, *ModEntityKeyRequest) (*KeyList, error)
-	ModifyUntypedEntityMeta(context.Context, *ModEntityMetaRequest) (*UntypedMetaResult, error)
-	SearchEntities(context.Context, *SearchRequest) (*EntityList, error)
-	// Add, Remove, and Modify groups
-	NewGroup(context.Context, *ModGroupRequest) (*SimpleResult, error)
-	DeleteGroup(context.Context, *ModGroupRequest) (*SimpleResult, error)
-	ModifyGroupMeta(context.Context, *ModGroupRequest) (*SimpleResult, error)
-	GroupInfo(context.Context, *ModGroupRequest) (*GroupInfoResult, error)
-	ModifyUntypedGroupMeta(context.Context, *ModGroupMetaRequest) (*UntypedMetaResult, error)
-	SearchGroups(context.Context, *SearchRequest) (*GroupList, error)
-	// List groups and members
-	ListGroups(context.Context, *GroupListRequest) (*GroupList, error)
-	ListGroupMembers(context.Context, *GroupMemberRequest) (*EntityList, error)
-	// Modify direct group membership
-	AddEntityToGroup(context.Context, *ModEntityMembershipRequest) (*SimpleResult, error)
-	RemoveEntityFromGroup(context.Context, *ModEntityMembershipRequest) (*SimpleResult, error)
-	// Modify nested group membership
-	ModifyGroupNesting(context.Context, *ModGroupNestingRequest) (*SimpleResult, error)
-}
-
-func RegisterNetAuthServer(s *grpc.Server, srv NetAuthServer) {
-	s.RegisterService(&_NetAuth_serviceDesc, srv)
-}
-
-func _NetAuth_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PingRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).Ping(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/Ping",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).Ping(ctx, req.(*PingRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_AuthEntity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(NetAuthRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).AuthEntity(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/AuthEntity",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).AuthEntity(ctx, req.(*NetAuthRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_GetToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(NetAuthRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).GetToken(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/GetToken",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).GetToken(ctx, req.(*NetAuthRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_ValidateToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(NetAuthRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).ValidateToken(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/ValidateToken",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).ValidateToken(ctx, req.(*NetAuthRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_LockEntity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(NetAuthRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).LockEntity(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/LockEntity",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).LockEntity(ctx, req.(*NetAuthRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_UnlockEntity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(NetAuthRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).UnlockEntity(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/UnlockEntity",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).UnlockEntity(ctx, req.(*NetAuthRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_ChangeSecret_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ModEntityRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).ChangeSecret(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/ChangeSecret",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).ChangeSecret(ctx, req.(*ModEntityRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_ManageCapabilities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ModCapabilityRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).ManageCapabilities(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/ManageCapabilities",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).ManageCapabilities(ctx, req.(*ModCapabilityRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_NewEntity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ModEntityRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).NewEntity(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/NewEntity",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).NewEntity(ctx, req.(*ModEntityRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_RemoveEntity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ModEntityRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).RemoveEntity(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/RemoveEntity",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).RemoveEntity(ctx, req.(*ModEntityRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_EntityInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(NetAuthRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).EntityInfo(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/EntityInfo",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).EntityInfo(ctx, req.(*NetAuthRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_ModifyEntityMeta_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ModEntityRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).ModifyEntityMeta(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/ModifyEntityMeta",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).ModifyEntityMeta(ctx, req.(*ModEntityRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_ModifyEntityKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ModEntityKeyRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).ModifyEntityKeys(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/ModifyEntityKeys",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).ModifyEntityKeys(ctx, req.(*ModEntityKeyRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_ModifyUntypedEntityMeta_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ModEntityMetaRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).ModifyUntypedEntityMeta(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/ModifyUntypedEntityMeta",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).ModifyUntypedEntityMeta(ctx, req.(*ModEntityMetaRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_SearchEntities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SearchRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).SearchEntities(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/SearchEntities",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).SearchEntities(ctx, req.(*SearchRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_NewGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ModGroupRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).NewGroup(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/NewGroup",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).NewGroup(ctx, req.(*ModGroupRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_DeleteGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ModGroupRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).DeleteGroup(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/DeleteGroup",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).DeleteGroup(ctx, req.(*ModGroupRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_ModifyGroupMeta_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ModGroupRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).ModifyGroupMeta(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/ModifyGroupMeta",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).ModifyGroupMeta(ctx, req.(*ModGroupRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_GroupInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ModGroupRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).GroupInfo(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/GroupInfo",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).GroupInfo(ctx, req.(*ModGroupRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_ModifyUntypedGroupMeta_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ModGroupMetaRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).ModifyUntypedGroupMeta(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/ModifyUntypedGroupMeta",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).ModifyUntypedGroupMeta(ctx, req.(*ModGroupMetaRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_SearchGroups_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SearchRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).SearchGroups(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/SearchGroups",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).SearchGroups(ctx, req.(*SearchRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_ListGroups_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GroupListRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).ListGroups(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/ListGroups",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).ListGroups(ctx, req.(*GroupListRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_ListGroupMembers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GroupMemberRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).ListGroupMembers(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/ListGroupMembers",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).ListGroupMembers(ctx, req.(*GroupMemberRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_AddEntityToGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ModEntityMembershipRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).AddEntityToGroup(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/AddEntityToGroup",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).AddEntityToGroup(ctx, req.(*ModEntityMembershipRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_RemoveEntityFromGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ModEntityMembershipRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).RemoveEntityFromGroup(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/RemoveEntityFromGroup",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).RemoveEntityFromGroup(ctx, req.(*ModEntityMembershipRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NetAuth_ModifyGroupNesting_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ModGroupNestingRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NetAuthServer).ModifyGroupNesting(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/NetAuth/ModifyGroupNesting",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NetAuthServer).ModifyGroupNesting(ctx, req.(*ModGroupNestingRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-var _NetAuth_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "NetAuth",
-	HandlerType: (*NetAuthServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "Ping",
-			Handler:    _NetAuth_Ping_Handler,
-		},
-		{
-			MethodName: "AuthEntity",
-			Handler:    _NetAuth_AuthEntity_Handler,
-		},
-		{
-			MethodName: "GetToken",
-			Handler:    _NetAuth_GetToken_Handler,
-		},
-		{
-			MethodName: "ValidateToken",
-			Handler:    _NetAuth_ValidateToken_Handler,
-		},
-		{
-			MethodName: "LockEntity",
-			Handler:    _NetAuth_LockEntity_Handler,
-		},
-		{
-			MethodName: "UnlockEntity",
-			Handler:    _NetAuth_UnlockEntity_Handler,
-		},
-		{
-			MethodName: "ChangeSecret",
-			Handler:    _NetAuth_ChangeSecret_Handler,
-		},
-		{
-			MethodName: "ManageCapabilities",
-			Handler:    _NetAuth_ManageCapabilities_Handler,
-		},
-		{
-			MethodName: "NewEntity",
-			Handler:    _NetAuth_NewEntity_Handler,
-		},
-		{
-			MethodName: "RemoveEntity",
-			Handler:    _NetAuth_RemoveEntity_Handler,
-		},
-		{
-			MethodName: "EntityInfo",
-			Handler:    _NetAuth_EntityInfo_Handler,
-		},
-		{
-			MethodName: "ModifyEntityMeta",
-			Handler:    _NetAuth_ModifyEntityMeta_Handler,
-		},
-		{
-			MethodName: "ModifyEntityKeys",
-			Handler:    _NetAuth_ModifyEntityKeys_Handler,
-		},
-		{
-			MethodName: "ModifyUntypedEntityMeta",
-			Handler:    _NetAuth_ModifyUntypedEntityMeta_Handler,
-		},
-		{
-			MethodName: "SearchEntities",
-			Handler:    _NetAuth_SearchEntities_Handler,
-		},
-		{
-			MethodName: "NewGroup",
-			Handler:    _NetAuth_NewGroup_Handler,
-		},
-		{
-			MethodName: "DeleteGroup",
-			Handler:    _NetAuth_DeleteGroup_Handler,
-		},
-		{
-			MethodName: "ModifyGroupMeta",
-			Handler:    _NetAuth_ModifyGroupMeta_Handler,
-		},
-		{
-			MethodName: "GroupInfo",
-			Handler:    _NetAuth_GroupInfo_Handler,
-		},
-		{
-			MethodName: "ModifyUntypedGroupMeta",
-			Handler:    _NetAuth_ModifyUntypedGroupMeta_Handler,
-		},
-		{
-			MethodName: "SearchGroups",
-			Handler:    _NetAuth_SearchGroups_Handler,
-		},
-		{
-			MethodName: "ListGroups",
-			Handler:    _NetAuth_ListGroups_Handler,
-		},
-		{
-			MethodName: "ListGroupMembers",
-			Handler:    _NetAuth_ListGroupMembers_Handler,
-		},
-		{
-			MethodName: "AddEntityToGroup",
-			Handler:    _NetAuth_AddEntityToGroup_Handler,
-		},
-		{
-			MethodName: "RemoveEntityFromGroup",
-			Handler:    _NetAuth_RemoveEntityFromGroup_Handler,
-		},
-		{
-			MethodName: "ModifyGroupNesting",
-			Handler:    _NetAuth_ModifyGroupNesting_Handler,
-		},
-	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "netauth.proto",
 }
 
 func init() { proto.RegisterFile("netauth.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 1606 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x58, 0xd9, 0x6e, 0xdb, 0x56,
-	0x13, 0x36, 0x29, 0xd9, 0x92, 0x46, 0x8b, 0xe9, 0x13, 0x2f, 0x82, 0xb3, 0x39, 0x04, 0x12, 0x18,
-	0xc9, 0xff, 0x1f, 0x27, 0x4e, 0xfe, 0x5c, 0x04, 0x3f, 0x7e, 0xfc, 0xb6, 0xc4, 0x38, 0x82, 0xb5,
-	0x18, 0x94, 0x1c, 0x34, 0xbd, 0x31, 0x18, 0xe9, 0x58, 0x22, 0x42, 0x91, 0xaa, 0x48, 0x25, 0xd1,
-	0x0b, 0x14, 0x7d, 0x81, 0x5e, 0xb4, 0x0f, 0xd1, 0x02, 0x7d, 0x8f, 0x5e, 0xf6, 0x15, 0xfa, 0x0c,
-	0x45, 0x17, 0xa0, 0x38, 0x0b, 0x17, 0x91, 0x52, 0x2c, 0xe7, 0xa6, 0x77, 0x3c, 0x73, 0x96, 0x99,
-	0xf9, 0xe6, 0x9b, 0x39, 0x73, 0x08, 0x45, 0x9b, 0x78, 0xc6, 0xc4, 0x1b, 0xe0, 0xd1, 0xd8, 0xf1,
-	0x1c, 0x75, 0x04, 0xa5, 0x26, 0xf1, 0x8e, 0x26, 0xde, 0x40, 0x27, 0x5f, 0x4d, 0x88, 0xeb, 0xa1,
-	0xbb, 0xb0, 0xa6, 0xd9, 0x9e, 0xe9, 0x4d, 0xcb, 0xd2, 0x9e, 0xbc, 0x9f, 0x3f, 0xcc, 0x60, 0x3e,
-	0xd4, 0x85, 0x18, 0xdd, 0x82, 0x1c, 0x5d, 0xdf, 0x71, 0xde, 0x11, 0xbb, 0x2c, 0xef, 0x49, 0xfb,
-	0x39, 0x3d, 0x14, 0xa0, 0xbb, 0x90, 0xae, 0xd9, 0x97, 0x4e, 0x39, 0xb5, 0x27, 0xed, 0xe7, 0x0f,
-	0xf3, 0xb8, 0x62, 0x99, 0xc4, 0xf6, 0xa8, 0x48, 0x67, 0x13, 0xea, 0x77, 0x12, 0x28, 0x0d, 0xa7,
-	0x27, 0x0e, 0x5d, 0x56, 0xe9, 0x7d, 0xc8, 0x05, 0x9b, 0x98, 0xd2, 0xc8, 0x9a, 0x70, 0xe6, 0x4a,
-	0xed, 0xb3, 0xc6, 0xa7, 0xf7, 0xe4, 0x19, 0xe3, 0xd5, 0x1f, 0x25, 0xb8, 0x11, 0x1c, 0x76, 0x4a,
-	0xa6, 0x9f, 0x8b, 0x89, 0x7c, 0x3d, 0x4c, 0x10, 0x82, 0x74, 0xc3, 0xe9, 0x91, 0x72, 0x9a, 0xa1,
-	0xc9, 0xbe, 0xa9, 0xac, 0x33, 0x1d, 0x91, 0xf2, 0x2a, 0x97, 0xd1, 0x6f, 0xa4, 0x40, 0xea, 0x94,
-	0x4c, 0xcb, 0x6b, 0x4c, 0x44, 0x3f, 0xd5, 0xef, 0x25, 0xd8, 0x0d, 0x2c, 0x6e, 0x90, 0xe1, 0x5b,
-	0x32, 0x76, 0x07, 0xe6, 0x28, 0x62, 0x38, 0x99, 0x6f, 0x38, 0xf1, 0x0d, 0x5f, 0x3d, 0x19, 0x3b,
-	0x93, 0x51, 0x39, 0xc5, 0xe6, 0xd7, 0x30, 0x1b, 0xe9, 0x5c, 0x18, 0x18, 0x9e, 0x5e, 0x0a, 0xce,
-	0xd5, 0x38, 0x9c, 0x3f, 0x4b, 0xb0, 0xdd, 0x70, 0x7a, 0xec, 0xac, 0x26, 0x71, 0x3d, 0xd3, 0xee,
-	0xfb, 0x86, 0xcd, 0x6c, 0x94, 0xe2, 0x80, 0xed, 0x43, 0xfe, 0xcc, 0x18, 0x13, 0xdb, 0xe3, 0xb6,
-	0xc9, 0x33, 0xb6, 0x45, 0xa7, 0xd0, 0x03, 0x80, 0xca, 0xc0, 0xb4, 0x7a, 0xf3, 0x9c, 0x88, 0xcc,
-	0x20, 0x35, 0x82, 0x70, 0xe9, 0xb0, 0x84, 0xb5, 0x8f, 0x23, 0xc3, 0x76, 0x4d, 0xc7, 0xa6, 0x52,
-	0x81, 0xb8, 0xef, 0xed, 0xea, 0x22, 0xea, 0xfe, 0x22, 0xc1, 0x66, 0xc3, 0xe9, 0x55, 0x8c, 0x91,
-	0xf1, 0xd6, 0xb4, 0x22, 0xf4, 0xfd, 0xb4, 0x37, 0x21, 0x7b, 0x62, 0xc4, 0x0d, 0xd9, 0x13, 0x04,
-	0x41, 0x4a, 0x06, 0x21, 0x24, 0x87, 0x1c, 0x90, 0xe3, 0x11, 0x40, 0x68, 0x05, 0x03, 0xbe, 0x44,
-	0x0d, 0x0e, 0x0d, 0x8b, 0x4c, 0x07, 0x7e, 0xad, 0x2d, 0xf2, 0xcb, 0x86, 0x75, 0x3f, 0x4c, 0xcb,
-	0x79, 0x14, 0x18, 0x2c, 0x7f, 0x8a, 0x35, 0x0b, 0x4b, 0x40, 0x1b, 0x10, 0x5b, 0xc9, 0xf9, 0x1a,
-	0xaa, 0x14, 0x87, 0x4a, 0xf3, 0x50, 0xf0, 0x0f, 0x95, 0x17, 0x1d, 0xfa, 0xb5, 0x04, 0x0a, 0x5b,
-	0x5a, 0x37, 0x5d, 0x2f, 0xe4, 0x3f, 0xdf, 0x25, 0x2d, 0x22, 0xf0, 0x95, 0xb1, 0x79, 0x0c, 0x4a,
-	0xcd, 0xee, 0x5a, 0x93, 0x1e, 0xa9, 0xd9, 0x3d, 0x73, 0x4c, 0xba, 0x9e, 0xcb, 0x1c, 0xcb, 0xbe,
-	0x48, 0x7b, 0xe3, 0x09, 0xd1, 0x13, 0xb3, 0xea, 0x4f, 0x9c, 0x25, 0x7e, 0x4a, 0x7a, 0xc6, 0xd2,
-	0x55, 0xc4, 0x8f, 0xb4, 0x1c, 0x89, 0xb4, 0x48, 0xf9, 0x14, 0x13, 0xd1, 0x4f, 0xb4, 0x09, 0xab,
-	0xaf, 0x0d, 0x6b, 0xe2, 0x57, 0x0b, 0x3e, 0xb8, 0x92, 0xbc, 0xb3, 0x11, 0x5d, 0x8b, 0xa7, 0xea,
-	0x0f, 0xbc, 0xf2, 0x89, 0xb0, 0x84, 0x36, 0x47, 0x82, 0x22, 0x2f, 0xa6, 0xe6, 0x3f, 0x60, 0xf0,
-	0x19, 0x14, 0xdb, 0xc4, 0x18, 0x77, 0x83, 0x7b, 0xeb, 0x0e, 0x00, 0xf9, 0x38, 0x1a, 0x13, 0x97,
-	0x66, 0x35, 0x0b, 0x78, 0x4e, 0x8f, 0x48, 0xae, 0x26, 0xd0, 0x11, 0x14, 0xda, 0xe6, 0x70, 0x64,
-	0x11, 0x9d, 0xb8, 0x13, 0x8b, 0x86, 0x2b, 0xe3, 0x4e, 0xba, 0x5d, 0xe2, 0xba, 0xcc, 0xf9, 0xec,
-	0x8b, 0xd5, 0x4b, 0xc3, 0x72, 0x89, 0xee, 0x4b, 0xa9, 0xa7, 0x43, 0xb7, 0x2f, 0xae, 0x40, 0xfa,
-	0xa9, 0xbe, 0x86, 0x3c, 0xb3, 0xee, 0x1a, 0x27, 0x34, 0xc2, 0x13, 0x1a, 0x6e, 0x9f, 0x62, 0xc5,
-	0x1d, 0x4e, 0x71, 0xac, 0xb8, 0xb3, 0xb7, 0x21, 0x73, 0x4a, 0xa6, 0x94, 0xd8, 0x14, 0xf2, 0x53,
-	0x32, 0xa5, 0x07, 0xa6, 0x28, 0xe4, 0xf4, 0x5b, 0x7d, 0x04, 0xb9, 0x80, 0xf9, 0xe8, 0x0e, 0xac,
-	0xb1, 0x01, 0x5f, 0x12, 0x86, 0x4c, 0x48, 0xd5, 0x1a, 0xac, 0xb3, 0x2f, 0xe6, 0x39, 0xb7, 0xf3,
-	0xd3, 0x41, 0x2e, 0x43, 0xa6, 0x61, 0xd8, 0x46, 0x9f, 0xf4, 0xca, 0x32, 0x53, 0xea, 0x0f, 0xd5,
-	0x03, 0x00, 0xce, 0x5c, 0xa6, 0xf8, 0x1e, 0x64, 0xc4, 0x05, 0x24, 0x34, 0x07, 0xfc, 0xf6, 0xe5,
-	0xea, 0x7f, 0x60, 0xe3, 0xdc, 0xf6, 0xa6, 0x23, 0xd2, 0xe3, 0x1c, 0x63, 0xda, 0xf7, 0x20, 0x1f,
-	0x11, 0x0a, 0xc7, 0xa2, 0x22, 0x15, 0x43, 0xfe, 0x2c, 0x72, 0x77, 0x5c, 0x95, 0xd4, 0xea, 0x0b,
-	0x28, 0xf0, 0xf5, 0xee, 0xc8, 0xb1, 0x5d, 0x42, 0x3d, 0x78, 0x45, 0x0c, 0xcb, 0x1b, 0x4c, 0xd9,
-	0x9e, 0xac, 0xee, 0x0f, 0x93, 0x01, 0x50, 0x4d, 0x3f, 0x49, 0x51, 0x09, 0xe4, 0x5a, 0x55, 0x10,
-	0x49, 0xae, 0x55, 0xd1, 0x36, 0xac, 0x35, 0x27, 0xd4, 0x0f, 0xb6, 0x7c, 0x55, 0x17, 0x23, 0x2a,
-	0x77, 0x49, 0x77, 0x4c, 0x3c, 0x11, 0x33, 0x31, 0xa2, 0x66, 0x0e, 0xa9, 0x43, 0xfe, 0xe5, 0x19,
-	0x29, 0x08, 0x6c, 0x42, 0xfd, 0x36, 0xe5, 0xe3, 0x47, 0x85, 0x48, 0x85, 0xc2, 0xd9, 0xd8, 0x1c,
-	0x1a, 0xe3, 0x69, 0x58, 0x06, 0x73, 0xfa, 0x8c, 0x8c, 0xd2, 0xe3, 0x44, 0xab, 0xb4, 0xda, 0xc2,
-	0x62, 0x3e, 0xa0, 0x99, 0x52, 0x27, 0x7d, 0xc3, 0x6a, 0x1a, 0x43, 0x22, 0x8c, 0x08, 0x05, 0x14,
-	0xdf, 0xaa, 0xe9, 0x8e, 0x2c, 0x63, 0xca, 0xe6, 0x79, 0x12, 0x46, 0x45, 0x94, 0x53, 0xaf, 0x9c,
-	0x61, 0xd0, 0x6a, 0xd0, 0x6f, 0xaa, 0xa9, 0x3d, 0x20, 0x96, 0x25, 0x9a, 0x0d, 0x3e, 0x40, 0x0f,
-	0xa0, 0x74, 0x32, 0x36, 0x46, 0x03, 0xb3, 0x6b, 0x58, 0x7c, 0x3a, 0xc3, 0xa6, 0x63, 0x52, 0xaa,
-	0xf3, 0xd8, 0xe8, 0xf5, 0x89, 0x00, 0x2c, 0xcb, 0x75, 0x46, 0x44, 0x14, 0xb5, 0xba, 0xd3, 0x7d,
-	0x47, 0x7a, 0xe5, 0x1c, 0x0b, 0x89, 0x18, 0xa1, 0x9d, 0x80, 0xbe, 0xbf, 0x73, 0x26, 0x88, 0x21,
-	0x7a, 0x0c, 0x85, 0xe0, 0x4e, 0x33, 0x89, 0x5b, 0xfe, 0x83, 0x4e, 0xc7, 0x6e, 0xbd, 0x99, 0x15,
-	0xe8, 0x86, 0x48, 0x95, 0x3f, 0x23, 0xb9, 0x82, 0xee, 0xcd, 0xb2, 0xed, 0xaf, 0x39, 0x74, 0xfb,
-	0x55, 0x82, 0xb0, 0xbe, 0x31, 0xcc, 0x78, 0x28, 0xd2, 0xf3, 0xe0, 0x94, 0x93, 0x70, 0x86, 0x44,
-	0x49, 0xcd, 0x10, 0xe5, 0x16, 0xe4, 0x44, 0xe6, 0x1c, 0x4f, 0x05, 0xd6, 0xa1, 0x00, 0x1d, 0xc4,
-	0xfc, 0x3b, 0xbc, 0xca, 0xbd, 0x3b, 0x00, 0x41, 0x17, 0xe3, 0x96, 0x9f, 0x32, 0x3f, 0x22, 0x92,
-	0x78, 0x5e, 0xf5, 0x92, 0x8e, 0x3e, 0x07, 0x08, 0x73, 0x27, 0xc1, 0xf7, 0x32, 0x64, 0xda, 0x64,
-	0xfc, 0xde, 0xec, 0xfa, 0x4e, 0xfa, 0xc3, 0x87, 0xdf, 0xc8, 0xd1, 0xf6, 0x03, 0xad, 0x43, 0xfe,
-	0xa4, 0xde, 0x3a, 0x3e, 0xaa, 0x5f, 0xe8, 0xad, 0x56, 0x47, 0x59, 0x41, 0x1b, 0x50, 0xac, 0xe8,
-	0xda, 0x51, 0x47, 0xbb, 0xd0, 0x9a, 0x9d, 0x5a, 0xe7, 0x8d, 0x02, 0x08, 0x41, 0xa9, 0xaa, 0xb5,
-	0x3b, 0x7a, 0xeb, 0x8d, 0x2f, 0xcb, 0xa3, 0x6d, 0x40, 0x8d, 0x56, 0xb5, 0xf6, 0xd2, 0x17, 0x5d,
-	0x34, 0xb4, 0xce, 0x91, 0x52, 0x48, 0xca, 0x4f, 0xb5, 0x37, 0x6d, 0xa5, 0x88, 0xca, 0xb0, 0x59,
-	0x79, 0x75, 0xd4, 0x3c, 0xf1, 0x8f, 0xbd, 0x68, 0x6b, 0x15, 0x5d, 0xeb, 0x28, 0x25, 0x6a, 0x41,
-	0xbd, 0x55, 0x39, 0xf5, 0x8f, 0x5e, 0xa7, 0x16, 0x9c, 0x37, 0xa3, 0x22, 0x05, 0x29, 0x50, 0x10,
-	0x46, 0x9d, 0xe8, 0xad, 0xf3, 0x33, 0x65, 0x93, 0x2e, 0xf2, 0x6d, 0xe2, 0xa2, 0x2d, 0xb4, 0x05,
-	0x1b, 0x42, 0x35, 0x93, 0x70, 0x8b, 0xb6, 0xa9, 0xe6, 0x98, 0xb8, 0x71, 0xac, 0xe9, 0x6d, 0x65,
-	0xe7, 0xe1, 0x53, 0x28, 0xce, 0xb4, 0x92, 0x28, 0x0f, 0x99, 0x5a, 0xb3, 0x52, 0x3f, 0xaf, 0x6a,
-	0x8a, 0x44, 0x07, 0xda, 0x17, 0x7c, 0x20, 0xa3, 0x2c, 0xa4, 0xab, 0x7a, 0xeb, 0x4c, 0xe9, 0x1e,
-	0xfe, 0x06, 0x90, 0x11, 0xaf, 0x2e, 0x74, 0x1f, 0xd2, 0xb4, 0x56, 0xa1, 0x02, 0x8e, 0x94, 0xb8,
-	0xdd, 0x22, 0x8e, 0x16, 0x30, 0x75, 0x05, 0x61, 0x00, 0xba, 0x5c, 0x94, 0xa6, 0x75, 0x3c, 0xfb,
-	0x68, 0xdb, 0x2d, 0xe2, 0xe8, 0xd5, 0xa5, 0xae, 0xa0, 0x47, 0x90, 0x3d, 0x21, 0x1e, 0xef, 0xd6,
-	0x12, 0xab, 0x0b, 0x38, 0x72, 0x4b, 0xa9, 0x2b, 0xe8, 0x09, 0x14, 0x5f, 0x1b, 0x96, 0xd9, 0x33,
-	0x3c, 0xb2, 0x60, 0x47, 0xe2, 0x7c, 0x0c, 0x40, 0x13, 0x76, 0x69, 0x7b, 0x1e, 0x43, 0xe1, 0xdc,
-	0xb6, 0xae, 0xb3, 0xe3, 0x10, 0x0a, 0x95, 0x81, 0x61, 0xf7, 0x49, 0x9b, 0x97, 0xd3, 0x0d, 0x1c,
-	0x7f, 0x35, 0x26, 0xf7, 0xfc, 0x17, 0x10, 0x4f, 0xa8, 0x99, 0x44, 0xd9, 0xc2, 0xf3, 0x9a, 0xf6,
-	0xe4, 0xee, 0x03, 0xc8, 0x35, 0xc9, 0x07, 0x61, 0xe0, 0x32, 0xea, 0x0e, 0xa1, 0xa0, 0x93, 0xa1,
-	0xf3, 0x9e, 0x5c, 0x63, 0xcf, 0xbe, 0x5f, 0xf3, 0x59, 0xce, 0x25, 0x60, 0xf0, 0xef, 0x4c, 0x75,
-	0x05, 0x3d, 0x67, 0xef, 0x64, 0xf3, 0x72, 0x1a, 0xb9, 0x23, 0x96, 0xd1, 0xf0, 0x6c, 0x76, 0x1f,
-	0xab, 0x7a, 0x9b, 0x78, 0xce, 0xb3, 0x76, 0x37, 0x8b, 0x45, 0x57, 0xa1, 0xae, 0xa0, 0x97, 0xb0,
-	0xc3, 0x77, 0x89, 0x02, 0x11, 0x51, 0xba, 0x85, 0xe7, 0xb5, 0xb3, 0xbb, 0x08, 0x27, 0xee, 0x72,
-	0x06, 0x62, 0x89, 0xf7, 0x65, 0x6c, 0x03, 0x85, 0xbf, 0x84, 0x67, 0x1a, 0xb5, 0x5d, 0xff, 0x26,
-	0x14, 0x8a, 0xff, 0x0d, 0xd9, 0x26, 0xf9, 0xc0, 0xeb, 0xad, 0x82, 0x63, 0xef, 0x90, 0x79, 0x44,
-	0xca, 0x57, 0x89, 0x45, 0x3c, 0xb2, 0xf4, 0x8e, 0x67, 0xec, 0x75, 0x63, 0x5e, 0x4e, 0x83, 0xe6,
-	0x76, 0x99, 0x5d, 0x4f, 0x44, 0x4f, 0xc5, 0xc2, 0x94, 0x5c, 0xaf, 0xe0, 0x58, 0x13, 0xa5, 0xae,
-	0xa0, 0x2a, 0x7b, 0xed, 0x86, 0x10, 0x86, 0xfa, 0x36, 0xf1, 0x9c, 0xde, 0x7a, 0x01, 0x80, 0xff,
-	0x82, 0x02, 0xc7, 0x4b, 0xdc, 0x7b, 0x71, 0xf8, 0x00, 0x07, 0xbd, 0x1e, 0x43, 0x0f, 0xe8, 0x97,
-	0x58, 0xbb, 0x81, 0xe3, 0x2f, 0xa0, 0xd8, 0xf2, 0xe7, 0xa0, 0x04, 0xcb, 0x45, 0x53, 0x86, 0x6e,
-	0xe0, 0xe4, 0x63, 0x2c, 0x1e, 0xa4, 0xff, 0x83, 0x72, 0xd4, 0x13, 0x1c, 0xe8, 0x38, 0x1c, 0xfa,
-	0x9b, 0x78, 0xf1, 0x8f, 0x87, 0x24, 0x9e, 0x1a, 0x6c, 0x45, 0x73, 0xe5, 0xe5, 0xd8, 0x19, 0x7e,
-	0xce, 0x31, 0xff, 0x03, 0x14, 0x09, 0xa6, 0xf8, 0xa9, 0x80, 0x76, 0xf0, 0xfc, 0xdf, 0x0c, 0x89,
-	0xfd, 0xc7, 0xb7, 0xbf, 0xbc, 0xd9, 0x37, 0xbd, 0xc1, 0xe4, 0x2d, 0xee, 0x3a, 0xc3, 0x03, 0xf1,
-	0x2f, 0xec, 0x80, 0xfd, 0x0b, 0xeb, 0x3a, 0xd6, 0xdf, 0x01, 0x00, 0x00, 0xff, 0xff, 0x41, 0x27,
-	0x70, 0xeb, 0x1e, 0x13, 0x00, 0x00,
+	// 685 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x94, 0x4b, 0x6f, 0xda, 0x4e,
+	0x14, 0xc5, 0xff, 0x36, 0xe6, 0x75, 0x0d, 0xc4, 0xb9, 0xff, 0x3c, 0x46, 0x6a, 0xda, 0xba, 0x2c,
+	0x2a, 0x94, 0x05, 0xa9, 0x88, 0xba, 0xeb, 0x06, 0xb0, 0x4b, 0x90, 0x01, 0x47, 0xc3, 0x43, 0x4d,
+	0x37, 0x68, 0x02, 0x23, 0xb0, 0x6a, 0x30, 0xc2, 0x46, 0x8a, 0x77, 0x5d, 0xf6, 0xdb, 0xf4, 0xfb,
+	0xf5, 0xa5, 0xca, 0x63, 0x13, 0x48, 0x52, 0xa9, 0xea, 0x6e, 0xce, 0xef, 0x8e, 0xef, 0x3d, 0x73,
+	0x66, 0x64, 0x28, 0x2e, 0x79, 0xc0, 0x36, 0xc1, 0xbc, 0xba, 0x5a, 0x7b, 0x81, 0x57, 0x7e, 0x07,
+	0x19, 0x6b, 0x64, 0xb0, 0x80, 0xa1, 0x06, 0x29, 0x8b, 0x87, 0x44, 0xd2, 0xe5, 0x4a, 0x9e, 0x46,
+	0x4b, 0xd4, 0x21, 0x33, 0x62, 0xee, 0x86, 0xfb, 0x44, 0xd6, 0x53, 0x15, 0xb5, 0x96, 0xab, 0x5a,
+	0x23, 0x01, 0x68, 0xc2, 0xcb, 0x6f, 0x21, 0x9b, 0x20, 0x3c, 0x82, 0xb4, 0x58, 0x24, 0x0d, 0xd2,
+	0xf7, 0xb4, 0xbd, 0x9c, 0xf2, 0x3b, 0x22, 0xeb, 0x52, 0x25, 0x4d, 0x63, 0x51, 0x76, 0x20, 0x63,
+	0x2e, 0x03, 0x27, 0x08, 0xb1, 0x04, 0x72, 0xdb, 0x20, 0x92, 0x2e, 0x55, 0xf2, 0x54, 0x6e, 0x1b,
+	0x78, 0x02, 0x99, 0xde, 0x66, 0x71, 0xcb, 0xd7, 0xc9, 0x07, 0x89, 0x8a, 0xb8, 0xcf, 0x27, 0x6b,
+	0x1e, 0x90, 0x94, 0xd8, 0x9b, 0x28, 0x7c, 0x09, 0xca, 0x82, 0x07, 0x8c, 0x28, 0xba, 0x54, 0x51,
+	0x6b, 0x6a, 0x35, 0x6e, 0xdb, 0xe5, 0x01, 0xa3, 0xa2, 0x50, 0xfe, 0x9a, 0x02, 0xd8, 0x41, 0x2c,
+	0x43, 0xe1, 0x7a, 0xed, 0x2c, 0xd8, 0x3a, 0x6c, 0xad, 0xbd, 0xcd, 0x2a, 0x99, 0xfc, 0x80, 0x45,
+	0x9e, 0x5b, 0x66, 0xd3, 0xee, 0x0b, 0x0b, 0x79, 0x1a, 0x0b, 0x3c, 0x83, 0x7c, 0x87, 0xcf, 0x98,
+	0xdb, 0x63, 0x0b, 0x9e, 0x98, 0xd8, 0x01, 0xd4, 0x41, 0x35, 0x1c, 0x7f, 0xe5, 0xb2, 0x50, 0xd4,
+	0x15, 0x51, 0xdf, 0x47, 0x88, 0xa0, 0x5c, 0x79, 0x0b, 0x4e, 0xd2, 0xa2, 0x24, 0xd6, 0xd1, 0xa4,
+	0xfe, 0x9c, 0xbb, 0x2e, 0xc9, 0xc4, 0x93, 0x84, 0xc0, 0xd7, 0x50, 0x6a, 0xad, 0xd9, 0x6a, 0xee,
+	0x4c, 0x98, 0x1b, 0x97, 0xb3, 0xa2, 0xfc, 0x88, 0x46, 0x33, 0x1b, 0x6c, 0x3a, 0xe3, 0x49, 0x60,
+	0xb9, 0x78, 0xe6, 0x1e, 0x8a, 0x52, 0xeb, 0x78, 0x93, 0x4f, 0x7c, 0x4a, 0xf2, 0xba, 0x54, 0xc9,
+	0xd1, 0x44, 0xe1, 0x29, 0x64, 0xc4, 0x51, 0x7d, 0xf2, 0x4d, 0xd2, 0x53, 0x51, 0x9c, 0xb1, 0xc4,
+	0x37, 0x50, 0x68, 0xb2, 0x15, 0xbb, 0x75, 0x5c, 0x27, 0x70, 0xb8, 0x4f, 0xbe, 0x47, 0xe5, 0x52,
+	0x4d, 0xad, 0xde, 0xd3, 0x90, 0x3e, 0xd8, 0x81, 0xff, 0x83, 0x62, 0xf1, 0xd0, 0x27, 0x3f, 0xe2,
+	0x46, 0x42, 0xe0, 0x2b, 0x50, 0x87, 0xcb, 0x20, 0x5c, 0xf1, 0x69, 0x14, 0x3a, 0xf9, 0x19, 0xd7,
+	0xf6, 0x19, 0x12, 0x90, 0xad, 0x11, 0xf9, 0x25, 0x89, 0x87, 0x95, 0xad, 0xc6, 0x6f, 0x90, 0xca,
+	0xd6, 0xa8, 0xfc, 0x59, 0x86, 0x74, 0x7c, 0x11, 0x08, 0x8a, 0x48, 0x33, 0xbe, 0x24, 0xe5, 0x4f,
+	0x41, 0xcb, 0x4f, 0x83, 0xde, 0x3d, 0xa1, 0xd4, 0x83, 0x27, 0x74, 0x06, 0xf9, 0x2e, 0x5b, 0xb2,
+	0x19, 0x9f, 0x36, 0xc2, 0xe4, 0x16, 0x76, 0x00, 0x2f, 0x1e, 0x9d, 0xbc, 0xf6, 0xb7, 0x83, 0xbf,
+	0x00, 0x30, 0xef, 0x56, 0x6c, 0xe9, 0x3b, 0xde, 0xd2, 0x27, 0x97, 0xe2, 0x84, 0x7b, 0x24, 0x32,
+	0xba, 0x9f, 0xc1, 0xf4, 0x1f, 0x22, 0x38, 0xff, 0x22, 0x03, 0xec, 0x06, 0xe3, 0x01, 0xa8, 0xad,
+	0x8e, 0xdd, 0xa8, 0x77, 0xc6, 0xd4, 0xb6, 0x07, 0xda, 0x7f, 0x78, 0x08, 0xc5, 0x26, 0x35, 0xeb,
+	0x03, 0x73, 0x6c, 0xf6, 0x06, 0xed, 0xc1, 0x8d, 0x06, 0x88, 0x50, 0x32, 0xcc, 0xfe, 0x80, 0xda,
+	0x37, 0x5b, 0xa6, 0xe2, 0x09, 0x60, 0xd7, 0x36, 0xda, 0xef, 0xb7, 0x68, 0xdc, 0x35, 0x07, 0x75,
+	0xad, 0xf0, 0x94, 0x5b, 0xe6, 0x4d, 0x5f, 0x2b, 0x22, 0x81, 0xa3, 0xe6, 0x55, 0xbd, 0xd7, 0xda,
+	0xb6, 0x1d, 0xf7, 0xcd, 0x26, 0x35, 0x07, 0x5a, 0x29, 0x72, 0xd0, 0xb1, 0x9b, 0xd6, 0xb6, 0xf5,
+	0x41, 0xe4, 0x60, 0xd8, 0xdb, 0x47, 0x1a, 0x6a, 0x50, 0x48, 0x4c, 0xb5, 0xa8, 0x3d, 0xbc, 0xd6,
+	0x8e, 0xa2, 0x4d, 0x5b, 0x4f, 0x31, 0x3a, 0xc6, 0x63, 0x38, 0x4c, 0x46, 0x0b, 0x12, 0x3b, 0x3a,
+	0x89, 0x26, 0x3f, 0xc2, 0xdd, 0x86, 0x49, 0xfb, 0xda, 0xe9, 0xf9, 0x25, 0x14, 0xef, 0x43, 0xed,
+	0x7a, 0x53, 0x8e, 0x2a, 0x64, 0xdb, 0xbd, 0x66, 0x67, 0x68, 0x98, 0x9a, 0x14, 0x09, 0xf3, 0x43,
+	0x2c, 0x64, 0xcc, 0x81, 0x62, 0x50, 0xfb, 0x5a, 0x9b, 0x34, 0x9e, 0x7f, 0x7c, 0x36, 0x73, 0x82,
+	0xf9, 0xe6, 0xb6, 0x3a, 0xf1, 0x16, 0x17, 0xc9, 0x0f, 0xef, 0x42, 0xfc, 0xf0, 0x26, 0x9e, 0xfb,
+	0x3b, 0x00, 0x00, 0xff, 0xff, 0x61, 0x67, 0xf0, 0x69, 0x03, 0x05, 0x00, 0x00,
 }
