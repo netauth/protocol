@@ -1,11 +1,16 @@
 protocol.pb.go:
-	protoc netauth.proto --go_out=plugins=grpc:.
-	mv github.com/netauth/protocol/netauth.pb.go .
-	rm -r github.com/
-
+	protoc --go_out=. \
+	  --go_opt=paths=source_relative \
+	  --go-grpc_out=. \
+	  --go-grpc_opt=paths=source_relative \
+	  --go-grpc_opt=require_unimplemented_servers=false \
+	  netauth.proto
 v2/rpc.pb.go:
-	protoc -I . v2/rpc.proto --go_out=plugins=grpc:.
-	mv github.com/netauth/protocol/v2/rpc.pb.go v2/
-	rm -r github.com/
+	protoc --go_out=. \
+	  --go_opt=paths=source_relative \
+	  --go-grpc_out=. \
+	  --go-grpc_opt=paths=source_relative \
+	  --go-grpc_opt=require_unimplemented_servers=false \
+	  v2/rpc.proto
 
 all: protocol.pb.go v2/rpc.pb.go
